@@ -40,6 +40,7 @@ function OnSignUp(props) {
     const fetchMovies = async () => {
       if (props.fetcher) {
         const filteredMovies = await props.fetcher(); // ✅ call the fetcher function
+        console.log(props.url,filteredMovies.length)
         setMovies(filteredMovies);
       } else if (props.url) {
         axios.get(props.url).then((response) => {
@@ -539,5 +540,9 @@ function OnSignUp(props) {
 }
 
 export default OnSignUp;
+
+
+
+
 
 
