@@ -295,20 +295,23 @@ function GenreChart({ data }) {
       </div>
   
       {/* Flex container for left + right layout */}
-      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between max-w-7xl mx-auto gap-10 p-4">
+      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between max-w-8xl mx-auto">
   
         {/* Left side: Text */}
-        <div className="md:w-1/2 w-full text-left space-y-6 px-4">
+        <div className="md:w-1/2 w-full text-left space-y-6">
           <h2 className="text-3xl md:text-4xl font-semibold text-white">
-            We've analyzed your mood.
+            We listened to how you're feeling — and picked these just for you.
           </h2>
           <p className="text-lg text-gray-300">
-            Based on your input, here's a curated collection of movie genres tailored to how you're feeling right now. Dive in and explore your mood-matched recommendations!
+            Your mood matters. So we took a moment to understand it — and in return, we’ve gathered a thoughtful lineup of films we believe you’ll connect with.
+            <br className="hidden md:block" />
+            <br />
+            Enjoy a cinematic experience that’s personal and made for this moment.
           </p>
         </div>
-  
+          
         {/* Right side: Chart */}
-        <div className="md:w-1/2 w-full">
+        <div className="md:w-1/2 w-full pr-6 md:pr-20">
           {/* Header inside chart section */}
           {/* <div className="text-center mb-6">
             <h6 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
@@ -322,7 +325,7 @@ function GenreChart({ data }) {
               transform: `perspective(1000px) rotateX(${mousePosition.y * 2}deg) rotateY(${mousePosition.x * 2}deg)`,
             }}
           >
-            <div className="h-[100px] md:h-[500px] relative">
+            <div className="md:h-[500px] relative">
               <ResponsiveContainer>
                 <PieChart>
                   <defs>

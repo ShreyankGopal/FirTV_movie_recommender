@@ -14,7 +14,6 @@ function getGenreDescription(genre) {
   const genreQuotes = {
     Happy: [
       '“Life is like a box of chocolates, you never know what you\'re gonna get.” – Forrest Gump',
-      '“Happiness can be found even in the darkest of times.” – Harry Potter and the Prisoner of Azkaban',
       '“To infinity and beyond!” – Toy Story',
       '“I\'m walking on sunshine!” – The Secret Life of Walter Mitty',
       '“Everything is awesome!” – The Lego Movie'
