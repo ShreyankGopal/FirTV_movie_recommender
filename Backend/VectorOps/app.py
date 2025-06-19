@@ -10,6 +10,7 @@ from getBertEmbedding import get_bert_embedding
 from moodDetector import analyze_mood
 import torch
 from transformers import BertTokenizer, BertModel
+from MoodEmbeddingPrompt import build_embedding_prompt
 app = Flask(__name__)
 CORS(app)
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
@@ -30,20 +31,44 @@ def getMoodRecommendation():
     text = data.get("text", "")
     emoji = (data.get("emoji") or "").lower()
 
+    # Step 1: Analyze mood → Get genres and emotions
     ranked_genres, top_emotions = analyze_mood(text, emoji)
 
-    genre_str = " ".join([f"{g['genre']} {g['score']}" for g in ranked_genres])
-    embedding = get_bert_embedding(genre_str,tokenizer,bert_model)
+    # Step 2: Build text prompts
+    emotion_labels = [emo["label"] for emo in top_emotions[:3]]  # Top 3 emotions
+    genre_labels = [g["genre"] for g in ranked_genres[:3]]        # Top 3 genres
 
+    emotion_text = f"The user is feeling {', '.join(emotion_labels)}."
+    genre_text = f"Recommended genres are {', '.join(genre_labels)}."
+    user_text = f"User input: {text}"
+
+    # Step 3: Get embeddings
+    emotion_embedding = get_bert_embedding(emotion_text, tokenizer, bert_model)
+    genre_embedding = get_bert_embedding(genre_text, tokenizer, bert_model)
+    text_embedding = get_bert_embedding(user_text, tokenizer, bert_model)
+
+    # Step 4: Weighted combination of embeddings
+    weight_text = 0.4
+    weight_emotion = 0.3
+    weight_genre = 0.3
+
+    combined_embedding = (
+        weight_text * text_embedding +
+        weight_emotion * emotion_embedding +
+        weight_genre * genre_embedding
+    )
+
+    # Step 5: Query Pinecone
     response = pinecone_index.query(
-        vector=embedding.tolist(),
+        vector=combined_embedding.tolist(),
         top_k=10,
         namespace="",  # default namespace
         include_metadata=False
     )
 
     movie_ids = [match['id'].split('.')[0] for match in response['matches']]
-    
+
+    # Step 6: Return response
     return jsonify({
         "emoji": emoji,
         "text_emotions": [
@@ -53,6 +78,7 @@ def getMoodRecommendation():
         "ranked_genres": ranked_genres,
         "movie_ids": movie_ids
     })
+
 @app.route('/getRecommendation', methods=['POST'])
 def get_recommendation():
     try:
@@ -100,6 +126,8 @@ def add_user_embedding():
             vectors=[(str(user_id), user_embedding.tolist())],
             namespace="users"
         )
+        test = index.fetch(ids=[str(user_id)], namespace="users")
+        print("Post-upsert check:", test.vectors)
         print(f"User embedding for {user_id} upserted into Pinecone.")
 
         return jsonify({

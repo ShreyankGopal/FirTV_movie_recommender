@@ -52,8 +52,11 @@ emotion_to_genres = {
 def analyze_mood(text, emoji):
     # Get emotion scores
     raw_results = classifier(text)[0]
-    top_emotions = sorted(raw_results, key=lambda x: x["score"], reverse=True)
-
+    print(raw_results)
+    # Filter top emotions with score > 0.6
+    top_emotions = [emo for emo in raw_results if emo["score"] > 0.1]
+    top_emotions = sorted(top_emotions, key=lambda x: x["score"], reverse=True)
+   
     # Accumulate genre scores
     genre_scores = defaultdict(float)
 
@@ -63,7 +66,7 @@ def analyze_mood(text, emoji):
         score = emo["score"]
         genres = emotion_to_genres.get(label, [])
         for g in genres:
-            genre_scores[g] += score  # Accumulate
+            genre_scores[g] += score
 
     # From emoji (optional boost)
     emoji_genres = emoji_to_genres.get(emoji, [])
@@ -71,11 +74,15 @@ def analyze_mood(text, emoji):
         genre_scores[g] += 0.1
         genre_scores[g] = min(genre_scores[g], 1)
 
-    # Sort genres by score
+    # Filter and sort genres with score > 0.6
     ranked_genres = sorted(
-        [{"genre": genre, "score": round(score, 3)} for genre, score in genre_scores.items()],
+        [{"genre": genre, "score": round(score, 3)} for genre, score in genre_scores.items() if score > 0.1],
         key=lambda x: x["score"],
         reverse=True
     )
 
+    print("Filtered Genres:", ranked_genres)
+    print("Filtered Emotions:", top_emotions)
+
     return ranked_genres, top_emotions
+
