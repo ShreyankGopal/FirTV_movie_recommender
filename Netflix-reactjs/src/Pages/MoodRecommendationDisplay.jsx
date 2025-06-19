@@ -16,11 +16,13 @@ function getGenreDescription(genre) {
       '“Life is like a box of chocolates, you never know what you\'re gonna get.” – Forrest Gump',
       '“Happiness can be found even in the darkest of times.” – Harry Potter and the Prisoner of Azkaban',
       '“To infinity and beyond!” – Toy Story',
-      '“I\'m walking on sunshine!” – The Secret Life of Walter Mitty'
+      '“I\'m walking on sunshine!” – The Secret Life of Walter Mitty',
+      '“Everything is awesome!” – The Lego Movie'
     ],
     Sad: [
-      '“You complete me.” – Jerry Maguire',
+      '“Sometimes I think I’ve felt everything I’m ever going to feel.” – Her',
       '“I wish I knew how to quit you.” – Brokeback Mountain',
+      '“It\'s supposed to be hard. If it wasn\'t hard, everyone would do it.” – A League of Their Own',
       '“I’m sorry, Wilson!” – Cast Away',
       '“I’ll never let go, Jack.” – Titanic'
     ],
@@ -49,7 +51,8 @@ function getGenreDescription(genre) {
       '“Carpe diem. Seize the day, boys.” – Dead Poets Society',
       '“It’s not about how hard you hit. It’s about how hard you can get hit and keep moving forward.” – Rocky Balboa',
       '“Hope is a good thing, maybe the best of things.” – The Shawshank Redemption',
-      '“You is kind. You is smart. You is important.” – The Help'
+      '“You is kind. You is smart. You is important.” – The Help',
+      '“No matter how small you are, you can do anything.” – Stuart Little'
     ],
     Emotional: [
       '“To me, you are perfect.” – Love Actually',
@@ -60,7 +63,8 @@ function getGenreDescription(genre) {
     Suspense: [
       '“The greatest trick the Devil ever pulled was convincing the world he didn’t exist.” – The Usual Suspects',
       '“A census taker once tried to test me.” – The Silence of the Lambs',
-      '“There’s a storm coming.” – Terminator'
+      '“There’s a storm coming.” – Terminator',
+      'A lie is just a great story that someone ruined with the truth.” – The Irishman'
     ],
     "Light-hearted": [
       '“Just keep swimming.” – Finding Nemo',
@@ -81,7 +85,8 @@ function getGenreDescription(genre) {
       '"We are who we choose to be." – Spider-Man (2002)',
       '“Get busy living, or get busy dying.” – The Shawshank Redemption',
       '"You mustn’t be afraid to dream a little bigger, darling." – Inception',
-      '"After a while, you learn to ignore the names people call you and just trust who you are." – Shrek'
+      '"After a while, you learn to ignore the names people call you and just trust who you are." – Shrek',
+      '“You measure yourself by the people who measure themselves by you.” – The Bucket List'
     ],
     Adventurous: [
       '“I’m going on an adventure!” – The Hobbit',
