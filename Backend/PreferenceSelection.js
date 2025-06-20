@@ -34,7 +34,7 @@ preferenceSelection.post('/addPreferenceToDB', async (req, res) => {
         }
       }
     );
-
+    console.log(response.data)
     // Extract movie IDs and embedding from Python backend
     const { embedding, valid_movie_ids } = response.data;
 
