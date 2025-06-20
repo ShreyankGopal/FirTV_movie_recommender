@@ -1,5 +1,6 @@
 import React from "react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import axios from "../../axios";
 import { imageUrl, imageUrl2, API_KEY } from "../../Constants/Constance";
@@ -12,7 +13,7 @@ import usePlayMovie from "../../CustomHooks/usePlayMovie";
 import useUpdateWatchedMovies from "../../CustomHooks/useUpdateWatchedMovies";
 import useUpdateLikedMovies from "../../CustomHooks/useUpdateLikedMovies";
 import useGenereConverter from "../../CustomHooks/useGenereConverter";
-
+import api from "../../api"
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination } from "swiper";
 
@@ -34,6 +35,42 @@ function RowPost(props) {
   const [moviePopupInfo, setMoviePopupInfo] = useState({});
   const [shouldPop, setshouldPop] = useState(true);
   const [urlId, setUrlId] = useState("");
+  const [roomCode, setRoomCode] = useState("");
+  const [showRoomCode, setShowRoomCode] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const navigate = useNavigate();
+
+  // Generate room code with movie ID and random 4-digit number
+  const generateRoomCode = (movieId) => {
+    const random4Digits = Math.floor(1000 + Math.random() * 9000);
+    return `${movieId}-${random4Digits}`;
+  };
+
+  // Handle watch together button click
+  const handleWatchTogether = (movie) => {
+    const code = generateRoomCode(movie.id);
+    setRoomCode(code);
+    setShowRoomCode(!showRoomCode);
+    setCopied(false);
+  };
+
+  // Copy room code to clipboard
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  // Navigate to the shared room
+  const goToRoom = () => {
+    const response = api.post(`/create-room`, { roomId: roomCode });
+    console.log(response);
+    navigate(`/play-together/${roomCode}`);
+  };
 
   useEffect(() => {
     const fetchMovieDetails = async (ids) => {
@@ -364,33 +401,93 @@ function RowPost(props) {
                       <img src={`${imageUrl + moviePopupInfo.backdrop_path}`} />
                     )}
 
-                    <div className="flex ml-4 items-center -mt-14">
-                      <button
-                        className="flex items-center justify-center bg-red-800 text-white active:bg-red-800 font-medium sm:font-bold uppercase text-xs px-4 sm:px-6 md:text-sm  py-2 rounded shadow hover:shadow-lg cursor-pointer outline-none focus:outline-none mr-3 mb-1 ease-linear transition-all duration-150"
-                        type="button"
-                        onClick={() => {
-                          playMovie(moviePopupInfo);
-                        }}
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-6 w-6 mr-1 text-white hover:text-gray-300 ease-linear transition-all duration-150"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
+                    <div className="flex ml-4 items-center -mt-14 space-x-3">
+                      <div className="flex space-x-3">
+                        <button
+                          className="flex items-center justify-center bg-red-800 text-white active:bg-red-800 font-medium sm:font-bold uppercase text-xs px-4 sm:px-6 md:text-sm py-2 rounded shadow hover:shadow-lg cursor-pointer outline-none focus:outline-none ease-linear transition-all duration-150"
+                          type="button"
+                          onClick={() => {
+                            playMovie(moviePopupInfo);
+                          }}
                         >
-                          <path
-                            fillRule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        Play
-                      </button>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-6 w-6 mr-1 text-white hover:text-gray-300 ease-linear transition-all duration-150"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          Play
+                        </button>
+                        <div className="flex flex-col space-y-2">
+                          <button
+                            className="flex items-center justify-center bg-gray-700 bg-opacity-70 text-white hover:bg-opacity-100 font-medium sm:font-bold uppercase text-xs px-4 sm:px-6 md:text-sm py-2 rounded shadow hover:shadow-lg cursor-pointer outline-none focus:outline-none ease-linear transition-all duration-150"
+                            type="button"
+                            onClick={() => handleWatchTogether(moviePopupInfo)}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-5 w-5 mr-1"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            Watch Together
+                          </button>
+                          {showRoomCode && (
+                            <div className="flex items-center space-x-2 bg-black bg-opacity-80 p-2 rounded">
+                              <span className="text-white text-sm font-mono bg-gray-900 px-3 py-1 rounded-l">
+                                {roomCode}
+                              </span>
+                              <button
+                                onClick={copyToClipboard}
+                                className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 text-sm font-medium transition-colors duration-150 flex items-center border-l border-gray-600"
+                              >
+                                {copied ? (
+                                  <>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                    Copied!
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                      <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                                      <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                                    </svg>
+                                    Copy Code
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                onClick={goToRoom}
+                                className="flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-medium text-xs px-3 py-1 rounded transition-colors duration-150 whitespace-nowrap"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                </svg>
+                                Go to Room
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                       <div
                         onClick={() => {
                           addToMyList(moviePopupInfo);
                         }}
-                        className="group text-white w-10 h-10 border-[2px] rounded-full p-2 mr-3  backdrop-blur-[1px] hover:bg-white hover:text-black shadow-md cursor-pointer ease-linear transition-all duration-150 "
+                        className="group text-white w-10 h-10 border-[2px] rounded-full p-2 backdrop-blur-[1px] hover:bg-white hover:text-black shadow-md cursor-pointer ease-linear transition-all duration-150"
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"

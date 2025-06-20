@@ -85,8 +85,10 @@ const ErrorPage = lazy(() => import("./Pages/ErrorPage"));
 const Play = lazy(() => import("./Pages/Play"));
 const LikedMovies = lazy(() => import("./Pages/LikedMovies"));
 const History = lazy(() => import("./Pages/History"));
-const SelectPreferences = lazy(() => import("./Pages/SelectPreferences")); // 👈 Add this
+const SelectPreferences = lazy(() => import("./Pages/SelectPreferences"));
 const MoodModal = lazy(() => import("./Pages/MoodModal"));
+const PlaySharedMovie = lazy(() => import("./Pages/PlaySharedMovie"));
+
 import { AuthContext } from "./Context/UserContext";
 import { auth } from "./Firebase/FirebaseConfig";
 import { onAuthStateChanged } from "firebase/auth";
@@ -131,6 +133,7 @@ function App() {
               <Route path="/history" element={<History />} />
               <Route path="/play/:id" element={<Play />} />
               <Route path="/select-preferences" element={<SelectPreferences />} /> {/* 👈 New route */}
+              <Route path="/play-together/:roomId" element={<PlaySharedMovie />} /> {/* 👈 New route */}
             </>
           )}
           <Route path="/signin" element={<SignIn />} />
