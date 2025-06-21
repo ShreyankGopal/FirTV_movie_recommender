@@ -20,15 +20,30 @@ function SelectPreferences() {
   const [selectedMovies, setSelectedMovies] = useState([]);
   const allowedMovieIds = new Set(allowedMovieIdsList); // ✅ Create set once
   const navigate = useNavigate();
-
+  console.log(allowedMovieIds)
   const isMovieAllowed = (id) => allowedMovieIds.has(id); // ✅ use .has, not .includes
 
   const filteredFetcher = (url) => async () => {
-    const response = await axios.get(url);
-    return response.data.results.filter((movie) => allowedMovieIds.has(movie.id));
+    const totalPagesToFetch = 5; // You can increase if needed
+    let allMovies = [];
+    console.log(url)
+    for (let page = totalPagesToFetch; page >=1 ; page--) {
+      const response = await axios.get(`${url}&page=${page}`);
+      allMovies = allMovies.concat(response.data.results);
+    }
+  
+    console.log("Total fetched movies:", allMovies.length);
+  
+    const filteredMovies = allMovies.filter((movie) => allowedMovieIds.has(movie.id));
+  
+    console.log("Filtered movies count:", filteredMovies.length);
+  
+    return filteredMovies;
   };
 
   const handleMovieSelect = (movie) => {
+    console.log("Here");
+    console.log(movie);
     if (selectedMovies.find((m) => m.id === movie.id)) {
       setSelectedMovies(selectedMovies.filter((m) => m.id !== movie.id));
     } else {
@@ -61,13 +76,13 @@ function SelectPreferences() {
         Choose what describes your taste
       </h1>
       <div className="w-[99%] ml-1">
-        <OnSignUp title="Trending" fetcher={filteredFetcher(trending)} onMovieClick={handleMovieSelect} selectedMovies={selectedMovies} />
-        <OnSignUp title="Animated" fetcher={filteredFetcher(Animated)} onMovieClick={handleMovieSelect} selectedMovies={selectedMovies} />
-        <OnSignUp title="Comedy" fetcher={filteredFetcher(comedy)} onMovieClick={handleMovieSelect} selectedMovies={selectedMovies} />
-        <OnSignUp title="Adventure" fetcher={filteredFetcher(Adventure)} onMovieClick={handleMovieSelect} selectedMovies={selectedMovies} />
-        <OnSignUp title="Horror" fetcher={filteredFetcher(horror)} onMovieClick={handleMovieSelect} selectedMovies={selectedMovies} />
-        <OnSignUp title="Sci-Fi" fetcher={filteredFetcher(SciFi)} onMovieClick={handleMovieSelect} selectedMovies={selectedMovies} />
-        <OnSignUp title="War" fetcher={filteredFetcher(War)} onMovieClick={handleMovieSelect} selectedMovies={selectedMovies} />
+        <OnSignUp title="Trending" url={trending} fetcher={filteredFetcher(trending)} onMovieClick={handleMovieSelect} selectedMovies={selectedMovies} />
+        <OnSignUp title="Animated" url={Animated} fetcher={filteredFetcher(Animated)} onMovieClick={handleMovieSelect} selectedMovies={selectedMovies} />
+        <OnSignUp title="Comedy" url={comedy} fetcher={filteredFetcher(comedy)} onMovieClick={handleMovieSelect} selectedMovies={selectedMovies} />
+        <OnSignUp title="Adventure" url={Adventure} fetcher={filteredFetcher(Adventure)} onMovieClick={handleMovieSelect} selectedMovies={selectedMovies} />
+        <OnSignUp title="Horror" url={horror} fetcher={filteredFetcher(horror)} onMovieClick={handleMovieSelect} selectedMovies={selectedMovies} />
+        <OnSignUp title="Sci-Fi" url={SciFi} fetcher={filteredFetcher(SciFi)} onMovieClick={handleMovieSelect} selectedMovies={selectedMovies} />
+        <OnSignUp title="War" url={War} fetcher={filteredFetcher(War)} onMovieClick={handleMovieSelect} selectedMovies={selectedMovies} />
       </div>
 
       <div className="flex justify-center mt-6 space-x-4">
