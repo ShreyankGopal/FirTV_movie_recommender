@@ -5,7 +5,9 @@ import http from 'http';
 import mediasoup from 'mediasoup';
 import preferenceSelection from './PreferenceSelection.js';
 import axios from 'axios';
-
+import ratingUpdateRouter from './handleUserRating.js';
+import { userRating } from './ratingStore.js';
+import addMovieEmbeddingRouter from './addMovieEmbedding.js';
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -23,7 +25,6 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 const rooms = new Map();
 const roomToMovieId = new Map();
 const mediaCodecs = [
@@ -527,7 +528,8 @@ app.post('/analyze-mood', async (req, res) => {
 app.get('/test-cors', (req, res) => {
   res.json({ message: 'CORS test successful' });
 });
-
+app.use('/',ratingUpdateRouter);
+app.use('/', addMovieEmbeddingRouter);
 server.listen(5002, () => {
   console.log('Server + Socket.IO running on http://localhost:5002');
 });

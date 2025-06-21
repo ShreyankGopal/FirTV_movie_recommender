@@ -11,6 +11,7 @@ from moodDetector import analyze_mood
 import torch
 from transformers import BertTokenizer, BertModel
 from MoodEmbeddingPrompt import build_embedding_prompt
+from getMovieEmbedding import get_movie_embedding as get_embedding
 app = Flask(__name__)
 CORS(app)
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
@@ -96,6 +97,85 @@ def get_recommendation():
         print("Error in Flask /getRecommendation:", str(e))
         return jsonify({"error": str(e)}), 500
 
+@app.route('/updateUserEmbedding', methods=['POST'])
+def update_user_embedding():
+    try:
+        data = request.get_json()
+        print("Received update user embedding request:", data)
+        
+        if not data or 'userId' not in data or 'ratings' not in data:
+            return jsonify({"error": "Missing required fields: 'userId' and 'ratings' are required"}), 400
+        
+        user_id = data['userId']
+        ratings = data['ratings']
+        
+        if not isinstance(ratings, list) or len(ratings) == 0:
+            return jsonify({"error": "'ratings' must be a non-empty list"}), 400
+            
+        # Get the Pinecone index
+        index = pinecone_client.Index(index_name)
+        
+        # Update user embedding based on ratings
+        from addUserEmbedding import update_user_embedding as update_embedding
+        result = update_embedding(user_id, ratings, tokenizer, bert_model, index)
+        
+        if 'error' in result:
+            return jsonify(result), result.get('status_code', 500)
+            
+        return jsonify({
+            "success": True,
+            "message": "User embedding updated successfully",
+            "user_id": user_id
+        }), 200
+        
+    except Exception as e:
+        print(f"Error in update_user_embedding: {str(e)}")
+        return jsonify({"error": f"Failed to update user embedding: {str(e)}"}), 500
+    
+@app.route('/addMovieEmbedding', methods=['POST'])
+def add_movie_embedding():
+    try:
+        data = request.get_json()
+        print("Incoming data:", data)
+        
+        if not data or 'movieId' not in data:
+            return jsonify({"error": "Missing required fields: 'movieId' is required"}), 400
+        
+        movie_id = data['movieId']
+        index = pinecone_client.Index(index_name)
+
+        # Check if movie already exists
+        existing = index.fetch(ids=[str(movie_id)], namespace="")
+        if str(movie_id) in existing.vectors:
+            print(f"Movie ID {movie_id} already exists in Pinecone.")
+            return jsonify({
+                "movie_id": movie_id,
+                "message": "Movie embedding already exists in Pinecone"
+            }), 200
+
+        # Get movie embedding
+        
+        movie_embedding = get_embedding(movie_id, index,tokenizer,bert_model)
+        
+        if not movie_embedding:
+            return jsonify({"error": "Movie embedding not found"}), 404
+        
+        # Upsert to Pinecone
+        index.upsert(
+            vectors=[(str(movie_id), movie_embedding.tolist())],
+            namespace=""
+        )
+
+        print(f"Movie embedding for {movie_id} upserted into Pinecone.")
+        
+        return jsonify({
+            "movie_id": movie_id,
+            "embedding": movie_embedding.tolist(),
+            "message": "Movie embedding generated and stored successfully"
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 @app.route('/AddUserEmbedding', methods=['POST'])
 def add_user_embedding():
     try:

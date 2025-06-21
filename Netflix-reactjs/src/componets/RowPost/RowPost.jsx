@@ -114,6 +114,7 @@ function RowPost(props) {
     if (shouldPop) {
       setMoviePopupInfo(movieInfo);
       setShowModal(true);
+      
       axios
         .get(`/movie/${movieInfo.id}/videos?api_key=${API_KEY}&language=en-US`)
         .then((responce) => {

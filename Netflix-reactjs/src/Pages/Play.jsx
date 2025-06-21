@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import React, { useEffect, useState, useContext } from "react";
+import { useParams, useNavigate, useLocation} from "react-router-dom";
 import StarRatings from "react-star-ratings";
 import axios from "../axios";
 import { API_KEY, imageUrl, imageUrl2 } from "../Constants/Constance";
-
+import { AuthContext } from "../Context/UserContext";
 import Navbar from "../componets/Header/Navbar";
 import Footer from "../componets/Footer/Footer";
 import useUpdateMylist from "../CustomHooks/useUpdateMylist";
 import useUpdateLikedMovies from "../CustomHooks/useUpdateLikedMovies";
-
+import api from "../api.js"
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
@@ -35,14 +35,14 @@ function Play() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  
+  const { User } = useContext(AuthContext);  
 
-  const handleRatingChange = (newRating) => {
+  const handleRatingChange = async(newRating) => {
     setUserRating(newRating);
     
-    axios.post('/addUserMovieRating', {
-      userId, // replace with actual user ID variable
-      movieId: movieDetails.id,
+    await api.post('/addUserMovieRating', {
+      userId: User.uid, // replace with actual user ID variable
+      movieId:id,
       rating: newRating
     })
     .then(() => setRatingSubmitted(true))
