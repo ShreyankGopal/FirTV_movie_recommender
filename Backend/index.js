@@ -1,35 +1,30 @@
 import express from 'express';
 import cors from 'cors';
-
 import { Server } from 'socket.io';
 import http from 'http';
 import mediasoup from 'mediasoup';
-
+import preferenceSelection from './PreferenceSelection.js';
+import axios from 'axios';
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: 'http://localhost:5173',
-
     methods: ['GET', 'POST'],
   },
 });
-
 
 app.use(cors({
   origin: 'http://localhost:5173',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-
   credentials: true,
-
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-
 const rooms = new Map();
-
+const roomToMovieId = new Map();
 const mediaCodecs = [
   {
     kind: 'audio',
@@ -48,7 +43,16 @@ const mediaCodecs = [
 ];
 
 let worker;
-
+app.get('/getMovieId/:roomId', (req, res) => {
+  const { roomId } = req.params;
+  const movieId = roomToMovieId.get(roomId);
+  console.log(movieId)
+  if (movieId) {
+    res.status(200).json({ movieId });
+  } else {
+    res.status(404).json({ error: 'Room not found' });
+  }
+});
 (async () => {
   worker = await mediasoup.createWorker({
     rtcMinPort: 10000,
@@ -57,16 +61,13 @@ let worker;
   console.log('Mediasoup worker created');
 })();
 
-// ----------- ROUTES ----------------
-
-
 async function createRouterForRoom() {
   return await worker.createRouter({ mediaCodecs });
 }
 
-
 app.get('/play-together/:roomId', async (req, res) => {
   const { roomId } = req.params;
+  console.log(rooms)
   if (rooms.has(roomId)) {
     res.status(200).json({ message: 'Room exists' });
   } else {
@@ -75,7 +76,7 @@ app.get('/play-together/:roomId', async (req, res) => {
 });
 
 app.post('/create-room', async (req, res) => {
-  const { roomId, youtubeLink } = req.body;
+  const { roomId, youtubeLink,movieId } = req.body;
   if (!roomId || !youtubeLink) {
     return res.status(400).json({ error: 'Room ID and YouTube link required' });
   }
@@ -93,9 +94,9 @@ app.post('/create-room', async (req, res) => {
       creator: null,
       videoState: { state: 'paused', time: 0, timestamp: 0 }
     });
+    roomToMovieId.set(roomId, movieId);
     console.log('Room created:', roomId, 'with YouTube link:', youtubeLink);
     res.status(201).json({ message: 'Room created', roomId });
-
   } catch (err) {
     console.error('Error creating room:', err);
     res.status(500).json({ error: 'Failed to create room' });
@@ -166,7 +167,7 @@ io.on('connection', (socket) => {
 
   socket.on('create-producer-transport', async ({ roomId }, callback) => {
     console.log('Create producer transport request for room:', roomId, 'by socket:', socket.id);
-
+    console.log('Room:', rooms.get(roomId));
     const room = rooms.get(roomId);
     if (!room) {
       console.log('Room does not exist during producer transport creation:', roomId);
@@ -412,6 +413,7 @@ io.on('connection', (socket) => {
         }
         socket.to(socket.currentRoom).emit('participant-left', { socketId: socket.id });
         if (room.participants.size === 0) {
+          roomToMovieId.delete(socket.currentRoom);
           console.log('Closing router for empty room:', socket.currentRoom);
           room.router.close();
           rooms.delete(socket.currentRoom);
@@ -439,7 +441,6 @@ io.on('connection', (socket) => {
       socket.transports.consumer.close();
     }
   });
-
 });
 
 process.on('SIGINT', () => {
@@ -454,7 +455,55 @@ process.on('SIGINT', () => {
   }
   process.exit(0);
 });
+//recommendation routes---------------
+app.use('/', preferenceSelection);
 
+app.post("/getRecommendation", async (req, res) => {
+  try {
+    const { userId } = req.body;
+    console.log("Received userId from frontend:", userId);
+
+    const flaskResponse = await axios.post("http://localhost:4000/getRecommendation", {
+      user_id: userId,
+    });
+
+    const recommendedMovieIds = flaskResponse.data.recommended_movie_ids;
+    console.log("Recommended Movie IDs from Flask:", recommendedMovieIds);
+
+    return res.status(200).json({ recommendedMovieIds });
+  } catch (error) {
+    console.error("Error in Node.js /getRecommendation route:", error.message);
+    return res.status(500).json({ error: "Failed to get recommendations" });
+  }
+});
+
+app.post('/analyze-mood', async (req, res) => {
+  const { text, emoji, user_id } = req.body;
+
+  try {
+    // Call Flask backend
+    const flaskResponse = await axios.post("http://localhost:4000/getMoodRecommendation", {
+      text,
+      emoji,
+      user_id
+    });
+
+    // Extract and forward the recommended movie IDs
+    const recommendedMovieIds = flaskResponse.data.movie_ids.map(id =>
+      parseInt(id.split('.')[0]) // Convert '27710.0' to 27710
+    );
+    const genres = flaskResponse.data.ranked_genres;
+    console.log("printing the Mood Movies ", recommendedMovieIds)
+    res.json({ movie_ids: recommendedMovieIds, genres: genres });
+  } catch (err) {
+    console.error('Error in Node.js backend:', err.message);
+    res.status(500).json({ error: 'Failed to analyze mood' });
+  }
+});
+
+app.get('/test-cors', (req, res) => {
+  res.json({ message: 'CORS test successful' });
+});
 server.listen(5002, () => {
   console.log('Server + Socket.IO running on http://localhost:5002');
 });

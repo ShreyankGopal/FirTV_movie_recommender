@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useContext } from "react";
-
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { Transition } from "@headlessui/react";
 import { Fade } from "react-reveal";
 import { Link, useNavigate } from "react-router-dom";
 import { getAuth, signOut } from "firebase/auth";
 import { AuthContext } from "../../Context/UserContext";
-
+import axios from "axios";
 function Navbar(props) {
   const { User } = useContext(AuthContext);
   const [profilePic, setProfilePic] = useState("");
+  const [isJoinCardOpen, setIsJoinCardOpen] = useState(false);
+  const [roomId, setRoomId] = useState("");
 
   const navigate = useNavigate();
 
@@ -22,6 +23,7 @@ function Navbar(props) {
       window.removeEventListener("scroll", transitionNavBar);
     };
   }, []);
+
   const [isOpen, setIsOpen] = useState(false);
 
   const [show, handleShow] = useState(false);
@@ -49,6 +51,28 @@ function Navbar(props) {
       .catch((error) => {
         alert(error.message);
       });
+  };
+
+  const handleJoinParty = () => {
+    setIsJoinCardOpen(true);
+  };
+
+  const handleCloseCard = () => {
+    setIsJoinCardOpen(false);
+    setRoomId("");
+  };
+
+  const handleJoinRoom = async() => {
+    if (roomId) {
+      const movieId = await axios.get(`http://localhost:5002/getMovieId/${roomId}`)
+      console.log(movieId.data.movieId)
+      setIsJoinCardOpen(false);
+      
+      navigate(`/play-together/${movieId.data.movieId}`, { state: { roomId: roomId } });
+      
+    } else {
+      alert("Please enter a room ID");
+    }
   };
 
   return (
@@ -111,6 +135,14 @@ function Navbar(props) {
                     >
                       My List
                     </Link>
+
+                    <button
+                      onClick={handleJoinParty}
+                      className="py-2 font-medium text-white transition ease-in-out delay-150 rounded-md cursor-pointer hover:text-red-800 lg:px-3 text-m"
+                    >
+                      Join Party
+                    </button>
+
                     <button
                       onClick={() => window.dispatchEvent(new Event("open-mood-modal"))}
                       className="py-2 font-medium text-white transition ease-in-out delay-150 rounded-md cursor-pointer hover:text-red-800 lg:px-3 text-m"
@@ -296,6 +328,13 @@ function Navbar(props) {
                     </a>
                   </Link>
 
+                  <a
+                    onClick={handleJoinParty}
+                    className="block px-3 py-2 text-base font-medium text-gray-300 rounded-md hover:bg-red-800 hover:text-white"
+                  >
+                    Join Party
+                  </a>
+
                   <Link to={"/signin"}>
                     <a className="block px-3 py-2 text-base font-medium text-gray-300 rounded-md hover:bg-red-800 hover:text-white">
                       Add another user
@@ -312,6 +351,34 @@ function Navbar(props) {
               </div>
             )}
           </Transition>
+
+          {/* Join Party Card */}
+          {isJoinCardOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 pt-20">
+              <div className="relative bg-black p-6 rounded-lg shadow-lg w-96">
+                <button
+                  onClick={handleCloseCard}
+                  className="absolute top-2 right-2 text-white text-2xl font-bold"
+                >
+                  ×
+                </button>
+                <h2 className="text-xl font-bold text-white mb-4 text-center">Join Party</h2>
+                <input
+                  type="text"
+                  value={roomId}
+                  onChange={(e) => setRoomId(e.target.value)}
+                  placeholder="Enter Room ID"
+                  className="w-full p-2 mb-4 border rounded text-white bg-gray-800"
+                />
+                <button
+                  onClick={handleJoinRoom}
+                  className="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700"
+                >
+                  Join
+                </button>
+              </div>
+            </div>
+          )}
         </nav>
       </header>
     </Fade>

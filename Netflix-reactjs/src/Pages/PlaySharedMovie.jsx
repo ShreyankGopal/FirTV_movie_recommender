@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
+import { useLocation } from 'react-router-dom';
 import * as mediasoupClient from 'mediasoup-client';
 import YouTube from 'react-youtube';
+import { Camera, CameraOff, Mic, MicOff, Users, Play, Pause } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import axios from 'axios';
+import { API_KEY } from '../Constants/Constance.js';
 
 function PlaySharedMovie() {
   const [roomId, setRoomId] = useState('');
@@ -14,6 +19,8 @@ function PlaySharedMovie() {
   const [isCreator, setIsCreator] = useState(false);
   const [currentState, setCurrentState] = useState('paused');
   const [initialTime, setInitialTime] = useState(null);
+  const [isCameraOn, setIsCameraOn] = useState(true);
+  const [isMicOn, setIsMicOn] = useState(true);
   const socketRef = useRef(null);
   const deviceRef = useRef(null);
   const producerTransportRef = useRef(null);
@@ -23,10 +30,51 @@ function PlaySharedMovie() {
   const pendingConsumersRef = useRef({});
   const isProducingRef = useRef({ video: false, audio: false });
   const roomIdRef = useRef('');
+  const { movieId } = useParams();
+  const [copied, setCopied] = useState(false);
+  const [joinerRoomId, setJoinerRoomId] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
-    socketRef.current = io('http://localhost:5002', { reconnection: true });
+    const JoinerRoom = location.state?.roomId;
 
+    if (JoinerRoom) {
+      console.log("JoinerRoom", JoinerRoom);
+      setJoinerRoomId(true);
+      setRoomId(JoinerRoom);
+    }
+  }, [location.state]);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(roomId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500); // Reset after 1.5s
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+  useEffect(() => {
+    socketRef.current = io('http://localhost:5002', { reconnection: true });
+    axios
+  .get(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${API_KEY}`)
+  .then((response) => {
+    const videos = response.data.results;
+
+    // Find the first YouTube trailer
+    const trailer = videos.find(
+      (video) => video.type === 'Trailer' && video.site === 'YouTube'
+    );
+
+    if (trailer) {
+      const youtubeUrl = `https://www.youtube.com/watch?v=${trailer.key}`;
+      setYoutubeLink(youtubeUrl);
+    } else {
+      console.log('No YouTube trailer found');
+    }
+  })
+  .catch((error) => {
+    console.error('Error fetching trailer:', error);
+  });
     if (!window.isSecureContext) {
       setError('This application requires a secure context (HTTPS or localhost).');
       return;
@@ -59,7 +107,7 @@ function PlaySharedMovie() {
     socketRef.current.on('new-participant', async ({ socketId, username }) => {
       console.log('New participant joined:', socketId, 'Username:', username);
       if (socketId !== socketRef.current.id) {
-        setParticipants((prev) => ({ ...prev, [socketId]: { username, stream: null } }));
+        setParticipants((prev) => ({ ...prev, [socketId]: { username, stream: null, cameraEnabled: true, micEnabled: true } }));
         console.log(`Added participant ${username} to participants list, waiting for their streams`);
       }
     });
@@ -119,6 +167,20 @@ function PlaySharedMovie() {
       }
     });
 
+    socketRef.current.on('toggle-camera', ({ socketId, cameraEnabled }) => {
+      setParticipants((prev) => ({
+        ...prev,
+        [socketId]: { ...prev[socketId], cameraEnabled }
+      }));
+    });
+
+    socketRef.current.on('toggle-mic', ({ socketId, micEnabled }) => {
+      setParticipants((prev) => ({
+        ...prev,
+        [socketId]: { ...prev[socketId], micEnabled }
+      }));
+    });
+
     return () => {
       console.log('Cleaning up...');
       if (socketRef.current) {
@@ -170,7 +232,7 @@ function PlaySharedMovie() {
         });
       }
     }
-  }, [localStream, joined]);
+  }, [localStream, joined, isCameraOn]);
 
   useEffect(() => {
     roomIdRef.current = roomId;
@@ -189,13 +251,13 @@ function PlaySharedMovie() {
       setError('Please enter a valid YouTube link');
       return;
     }
-    const newRoomId = Math.random().toString(36).substring(2, 10);
+    const newRoomId = Math.random().toString(36).substring(2, 10).toUpperCase();
     console.log('Creating room:', newRoomId, 'with YouTube link:', youtubeLink);
     try {
       const response = await fetch('http://localhost:5002/create-room', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roomId: newRoomId, youtubeLink }),
+        body: JSON.stringify({ roomId: newRoomId, youtubeLink,movieId:movieId }),
       });
       const data = await response.json();
       if (response.ok) {
@@ -244,7 +306,7 @@ function PlaySharedMovie() {
           setIsCreator(data.isCreator);
           setCurrentState(data.videoState);
           setInitialTime(data.videoTime);
-          setParticipants((prev) => ({ ...prev, [socketRef.current.id]: { username, stream: localStream } }));
+          setParticipants((prev) => ({ ...prev, [socketRef.current.id]: { username, stream: localStream, cameraEnabled: true, micEnabled: true } }));
 
           await createProducerTransport(id);
 
@@ -267,7 +329,7 @@ function PlaySharedMovie() {
                 console.log(`Setting up consumption for existing participant: ${participantUsername} (${socketId})`);
                 setParticipants((prev) => ({ 
                   ...prev, 
-                  [socketId]: { username: participantUsername, stream: null } 
+                  [socketId]: { username: participantUsername, stream: null, cameraEnabled: true, micEnabled: true } 
                 }));
                 try {
                   await createConsumerTransport(socketId, id);
@@ -483,7 +545,7 @@ function PlaySharedMovie() {
           console.log('Consumer created:', consumer.id, 'for producer:', producerId, 'kind:', kind);
 
           setParticipants((prev) => {
-            const existing = prev[socketId] || { username: 'Unknown' };
+            const existing = prev[socketId] || { username: 'Unknown', cameraEnabled: true, micEnabled: true };
             let existingStream = existing.stream;
 
             if (!existingStream) {
@@ -525,6 +587,36 @@ function PlaySharedMovie() {
     });
   };
 
+  const toggleCamera = () => {
+    if (localStream) {
+      const videoTrack = localStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !isCameraOn;
+        setIsCameraOn(!isCameraOn);
+        socketRef.current.emit('toggle-camera', { 
+          roomId, 
+          socketId: socketRef.current.id,
+          cameraEnabled: !isCameraOn 
+        });
+      }
+    }
+  };
+
+  const toggleMic = () => {
+    if (localStream) {
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !isMicOn;
+        setIsMicOn(!isMicOn);
+        socketRef.current.emit('toggle-mic', { 
+          roomId, 
+          socketId: socketRef.current.id,
+          micEnabled: !isMicOn 
+        });
+      }
+    }
+  };
+
   const handleJoin = (e) => {
     e.preventDefault();
     if (roomId.trim() && username.trim()) {
@@ -541,167 +633,350 @@ function PlaySharedMovie() {
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
-  return (
-    <div className="min-h-screen bg-gray-100 p-4">
-      {!joined ? (
-        <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
-          <h1 className="text-2xl font-bold mb-4">Video Conference</h1>
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
+  const VideoFrame = ({ stream, username, isLocal = false, cameraEnabled = true, micEnabled = true }) => {
+    const localVideoRef = useRef(null);
+
+    useEffect(() => {
+      if (isLocal && stream && localVideoRef.current) {
+        console.log(`Assigning local stream for ${username}`);
+        localVideoRef.current.srcObject = stream;
+        localVideoRef.current.play().catch((err) => {
+          console.error(`Local video play error for ${username}:`, err);
+          setError(`Local video playback failed: ${err.message}`);
+        });
+      }
+    }, [stream, isLocal, cameraEnabled]);
+
+    return (
+      <div className="relative group">
+        <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl overflow-hidden border border-gray-800 shadow-2xl transform transition-all duration-300 hover:border-red-500/50">
+          <div className="aspect-video relative">
+            {cameraEnabled && stream ? (
+              <video
+                ref={isLocal ? localVideoRef : (video) => {
+                  if (video && stream && video.srcObject !== stream) {
+                    console.log(`Assigning stream for ${username}`);
+                    video.srcObject = stream;
+                    video.play().catch((err) => {
+                      console.error(`Video play error for ${username}:`, err);
+                      setError(`Video playback failed for ${username}: ${err.message}`);
+                    });
+                  }
+                }}
+                autoPlay
+                playsInline
+                muted={isLocal}
+                className="w-full h-full object-cover"
+                style={{ background: 'black' }}
+              />
+            ) : (
+              <div className="w-full h-full bg-black flex items-center justify-center">
+                <CameraOff className="w-12 h-12 text-gray-500" />
+              </div>
+            )}
+            
+            {/* Username and status overlay */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-white font-medium text-sm">
+                  {username} {isLocal && '(You)'}
+                </span>
+                <div className="flex space-x-2">
+                  {!micEnabled && (
+                    <div className="bg-red-600 rounded-full p-1">
+                      <MicOff className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+                  {!cameraEnabled && (
+                    <div className="bg-red-600 rounded-full p-1">
+                      <CameraOff className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          )}
-          <div className="mb-6">
-            <h2 className="text-xl mb-2">Join Existing Room</h2>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter Username"
-              className="w-full p-2 border rounded mb-2"
-              onKeyPress={(e) => e.key === 'Enter' && handleJoin(e)}
-            />
-            <input
-              type="text"
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
-              placeholder="Enter Room ID"
-              className="w-full p-2 border rounded mb-2"
-              onKeyPress={(e) => e.key === 'Enter' && handleJoin(e)}
-            />
-            <button
-              onClick={handleJoin}
-              className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition-colors"
-              disabled={!username.trim() || !roomId.trim()}
-            >
-              Join Room
-            </button>
-          </div>
-          <div>
-            <h2 className="text-xl mb-2">Or Create New Room</h2>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter Username"
-              className="w-full p-2 border rounded mb-2"
-            />
-            <input
-              type="text"
-              value={youtubeLink}
-              onChange={(e) => setYoutubeLink(e.target.value)}
-              placeholder="Enter YouTube Link"
-              className="w-full p-2 border rounded mb-2"
-            />
-            <button
-              onClick={createRoom}
-              className="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 transition-colors"
-              disabled={!username.trim() || !youtubeLink.trim()}
-            >
-              Create New Room
-            </button>
+            
+            {/* Live indicator for local stream */}
+            {isLocal && (
+              <div className="absolute top-3 left-3">
+                <div className="bg-red-600 px-2 py-1 rounded text-white text-xs font-bold flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                  <span>LIVE</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      ) : (
-        <div className="max-w-6xl mx-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="text-2xl font-bold">Room: {roomId}</h1>
-            <div className="text-sm text-gray-600">
-              {Object.keys(participants).length} participant(s)
+      </div>
+    );
+  };
+
+  if (!joined) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-900/20 flex items-center justify-center p-4">
+        <div className="w-full max-w-md mt-8">
+        {error && (
+          <div className="bg-red-900/40 border border-red-500 text-red-300 px-3 py-2 rounded-md mb-4 flex items-center text-sm">
+            <div className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></div>
+            {error}
+          </div>
+        )}
+
+        <div className="w-full max-w-md bg-black/40 backdrop-blur-lg border border-gray-800 rounded-2xl p-6 shadow-2xl text-sm leading-tight mx-auto">
+      {/* Join Room Section */}
+      {joinerRoomId && (
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-white mb-3 flex items-center">
+          <Users className="w-5 h-5 mr-2 text-red-500" />
+          Join Watch Party
+        </h2>
+        <div className="space-y-3">
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Your name"
+            className="w-full p-3 bg-gray-900/50 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:border-red-500 focus:outline-none transition-colors"
+            
+          />
+          <button
+            onClick={handleJoin}
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-md transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            disabled={!username.trim() || !roomId.trim()}
+          >
+            Join Party
+          </button>
+        </div>
+      </div>
+    )}
+      {/* Divider */}
+      {/* <div className="relative my-5">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-700"></div>
+        </div>
+        <div className="relative flex justify-center text-xs">
+          <span className="px-3 bg-black/40 text-gray-400">or</span>
+        </div>
+      </div> */}
+
+      {/* Create Room Section */}
+      
+      {!joinerRoomId && (
+        <div className="mb-4 p-4 bg-gray-900/50 border border-gray-700 rounded-md w-full max-w-sm mx-auto space-y-4">
+        <h2 className="text-lg font-semibold text-white flex items-center">
+          <Users className="w-5 h-5 mr-2 text-red-500" />
+          Create watch party
+        </h2>
+    
+        <input
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="Your name"
+          className="w-full p-2 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-400 focus:border-red-500 focus:outline-none transition-colors"
+        />
+    
+        <button
+          onClick={createRoom}
+          className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-md transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          disabled={!username.trim()}
+        >
+          Create Party
+        </button>
+      </div>
+      )}
+      </div>
+
+      </div>
+    </div>
+    );
+      }
+
+  return (
+    <div className="min-h-screen">
+      {/* Header */}
+      <div className="max-w-7xl mx-auto px-4 py-4 mt-16">
+          <div className="flex justify-between items-center">
+          <div className="bg-gray-800 px-3 py-1 rounded-full flex items-center space-x-2">
+        <span className="text-white text-sm font-large">Room: {roomId}</span>
+            <button
+                onClick={handleCopy}
+                className="text-white hover:text-blue-400 focus:outline-none"
+                title="Copy Room ID"
+            >
+              {/* SVG Copy Icon */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8l6 6v8a2 2 0 01-2 2h-2M8 16v2a2 2 0 002 2h6M8 16h8"
+                />
+              </svg>
+              </button>
+              {copied && <span className="text-green-400 text-xs">Copied!</span>}
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 text-gray-400">
+                <Users className="w-4 h-4" />
+                <span className="text-sm">{Object.keys(participants).length} watching</span>
+              </div>
+              {isCreator && (
+                <div className="bg-red-600 px-3 py-1 rounded-full">
+                  <span className="text-white text-xs font-bold">HOST</span>
+                </div>
+              )}
             </div>
           </div>
+        </div>
 
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
-            </div>
-          )}
 
-          <div className="flex flex-col gap-4">
-            <div>
-              <h2 className="text-xl font-bold mb-2">Watch Video</h2>
-              <YouTube
-                videoId={extractVideoId(youtubeLink)}
-                opts={{
-                  height: '390',
-                  width: '640',
-                  playerVars: {
-                    autoplay: 0,
-                    controls: isCreator ? 1 : 2, // 1 for creator (full controls), 2 for non-creators (volume only)
-                  },
-                }}
-                onReady={(event) => {
-                  playerRef.current = event.target;
-                  if (initialTime !== null) {
-                    playerRef.current.seekTo(initialTime);
-                    if (currentState === 'playing') {
-                      playerRef.current.playVideo();
-                    } else {
-                      playerRef.current.pauseVideo();
-                    }
-                    setInitialTime(null);
-                  }
-                }}
-                onPlay={() => {
-                  if (isCreator) {
-                    socketRef.current.emit('play-video', { roomId, time: playerRef.current.getCurrentTime() });
-                  }
-                }}
-                onPause={() => {
-                  if (isCreator) {
-                    socketRef.current.emit('pause-video', { roomId, time: playerRef.current.getCurrentTime() });
-                  }
-                }}
-              />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold mb-2">Video Chat</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="bg-white p-4 rounded-lg shadow-md">
-                  <h3 className="text-lg font-semibold mb-2 text-green-600">
-                    You ({username})
-                  </h3>
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full rounded aspect-video object-cover"
-                    style={{ background: 'black' }}
-                  />
+      {/* {error && (
+        <div className="max-w-7xl mx-auto px-4 pt-4">
+          <div className="bg-red-900/50 border border-red-500 text-red-300 px-4 py-3 rounded-lg flex items-center">
+            <div className="w-2 h-2 bg-red-500 rounded-full mr-3 animate-pulse"></div>
+            {error}
+          </div>
+        </div>
+      )} */}
+
+      <div className="max-w-7xl mx-auto px-4 py-0">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* Video Player Section */}
+          <div className="xl:col-span-2">
+            <div className="bg-black/40 backdrop-blur-lg border border-gray-800 rounded-2xl p-6 shadow-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white flex items-center">
+                  <Play className="w-5 h-5 mr-2 text-red-500" />
+                  Now Playing
+                </h2>
+                <div className="flex items-center space-x-2">
+                  {currentState === 'playing' ? (
+                    <Pause className="w-5 h-5 text-green-500" />
+                  ) : (
+                    <Play className="w-5 h-5 text-gray-500" />
+                  )}
+                  <span className="text-sm text-gray-400 capitalize">{currentState}</span>
                 </div>
-                {Object.entries(participants).map(([socketId, { username: participantUsername, stream }]) => (
-                  socketId !== socketRef.current?.id && (
-                    <div key={socketId} className="bg-white p-4 rounded-lg shadow-md">
-                      <h3 className="text-lg font-semibold mb-2">
-                        {participantUsername}
-                        {!stream && <span className="text-yellow-600 text-sm ml-2">(Connecting...)</span>}
-                      </h3>
-                      <video
-                        autoPlay
-                        playsInline
-                        ref={(video) => {
-                          if (video && stream) {
-                            console.log(`Assigning stream for ${participantUsername} (${socketId})`);
-                            if (video.srcObject !== stream) {
-                              video.srcObject = stream;
-                              video.play().catch((err) => {
-                                console.error(`Video play error for ${participantUsername}:`, err);
-                              });
-                            }
-                          }
-                        }}
-                        className="w-full rounded aspect-video object-cover"
-                        style={{ background: 'black' }}
-                      />
-                    </div>
-                  )
-                ))}
+              </div>
+              
+              <div className="rounded-xl overflow-hidden shadow-2xl">
+                <YouTube
+                  videoId={extractVideoId(youtubeLink)}
+                  opts={{
+                    height: '400',
+                    width: '100%',
+                    playerVars: {
+                      autoplay: 0,
+                      controls: isCreator ? 1 : 2,
+                    },
+                  }}
+                  onReady={(event) => {
+                    playerRef.current = event.target;
+                    if (initialTime !== null) {
+                      playerRef.current.seekTo(initialTime);
+                      if (currentState === 'playing') {
+                        playerRef.current.playVideo();
+                      } else {
+                        playerRef.current.pauseVideo();
+                      }
+                      setInitialTime(null);
+                    }
+                  }}
+                  onPlay={() => {
+                    if (isCreator) {
+                      socketRef.current.emit('play-video', { roomId, time: playerRef.current.getCurrentTime() });
+                    }
+                  }}
+                  onPause={() => {
+                    if (isCreator) {
+                      socketRef.current.emit('pause-video', { roomId, time: playerRef.current.getCurrentTime() });
+                    }
+                  }}
+                />
               </div>
             </div>
           </div>
+
+          {/* Video Chat Section */}
+          <div className="xl:col-span-1">
+            <div className="bg-black/40 backdrop-blur-lg border border-gray-800 rounded-2xl p-6 shadow-2xl h-full">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white flex items-center">
+                  <Camera className="w-5 h-5 mr-2 text-red-500" />
+                  Party Guests
+                </h2>
+                
+                {/* Media Controls */}
+                <div className="flex space-x-2">
+                  <button
+                    onClick={toggleCamera}
+                    className={`p-3 rounded-full transition-all transform hover:scale-110 ${
+                      isCameraOn 
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                        : 'bg-red-600 hover:bg-red-700 text-white'
+                    }`}
+                    title={isCameraOn ? 'Turn off camera' : 'Turn on camera'}
+                  >
+                    {isCameraOn ? <Camera className="w-4 h-4" /> : <CameraOff className="w-4 h-4" />}
+                  </button>
+                  
+                  <button
+                    onClick={toggleMic}
+                    className={`p-3 rounded-full transition-all transform hover:scale-110 ${
+                      isMicOn 
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                        : 'bg-red-600 hover:bg-red-700 text-white'
+                    }`}
+                    title={isMicOn ? 'Mute microphone' : 'Unmute microphone'}
+                  >
+                    {isMicOn ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4 max-h-96 overflow-y-auto pr-2 pl-1 custom-scrollbar">
+                {/* Your video */}
+                <VideoFrame
+                  stream={localStream}
+                  username={username}
+                  isLocal={true}
+                  cameraEnabled={isCameraOn}
+                  micEnabled={isMicOn}
+                />
+
+                {/* Other participants */}
+                {Object.entries(participants).map(([socketId, { username: participantUsername, stream, cameraEnabled, micEnabled }]) => (
+                  socketId !== socketRef.current?.id && (
+                    <VideoFrame
+                      key={socketId}
+                      stream={stream}
+                      username={participantUsername}
+                      cameraEnabled={cameraEnabled}
+                      micEnabled={micEnabled}
+                    />
+                  )
+                ))}
+                
+              </div>
+
+              {Object.keys(participants).length === 0 && (
+                <div className="text-center py-8">
+                  <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                  <p className="text-gray-400">Waiting for others to join...</p>
+                  <p className="text-sm text-gray-500 mt-2">Share room ID: <span className="font-mono bg-gray-800 px-2 py-1 rounded">{roomId}</span></p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
