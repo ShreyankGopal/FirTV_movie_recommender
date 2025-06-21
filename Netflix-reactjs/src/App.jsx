@@ -133,7 +133,7 @@ function App() {
               <Route path="/history" element={<History />} />
               <Route path="/play/:id" element={<Play />} />
               <Route path="/select-preferences" element={<SelectPreferences />} /> {/* 👈 New route */}
-              <Route path="/play-together/:roomId" element={<PlaySharedMovie />} /> {/* 👈 New route */}
+              <Route path="/play-together/:movieId" element={<PlaySharedMovie />} /> {/* 👈 New route */}
             </>
           )}
           <Route path="/signin" element={<SignIn />} />

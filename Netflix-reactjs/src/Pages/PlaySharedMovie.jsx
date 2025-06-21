@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
+import { useLocation } from 'react-router-dom';
 import * as mediasoupClient from 'mediasoup-client';
 import YouTube from 'react-youtube';
 import { Camera, CameraOff, Mic, MicOff, Users, Play, Pause } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import axios from 'axios';
+import { API_KEY } from '../Constants/Constance.js';
 
 function PlaySharedMovie() {
   const [roomId, setRoomId] = useState('');
@@ -26,10 +30,51 @@ function PlaySharedMovie() {
   const pendingConsumersRef = useRef({});
   const isProducingRef = useRef({ video: false, audio: false });
   const roomIdRef = useRef('');
+  const { movieId } = useParams();
+  const [copied, setCopied] = useState(false);
+  const [joinerRoomId, setJoinerRoomId] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
-    socketRef.current = io('http://localhost:5002', { reconnection: true });
+    const JoinerRoom = location.state?.roomId;
 
+    if (JoinerRoom) {
+      console.log("JoinerRoom", JoinerRoom);
+      setJoinerRoomId(true);
+      setRoomId(JoinerRoom);
+    }
+  }, [location.state]);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(roomId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500); // Reset after 1.5s
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+  useEffect(() => {
+    socketRef.current = io('http://localhost:5002', { reconnection: true });
+    axios
+  .get(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${API_KEY}`)
+  .then((response) => {
+    const videos = response.data.results;
+
+    // Find the first YouTube trailer
+    const trailer = videos.find(
+      (video) => video.type === 'Trailer' && video.site === 'YouTube'
+    );
+
+    if (trailer) {
+      const youtubeUrl = `https://www.youtube.com/watch?v=${trailer.key}`;
+      setYoutubeLink(youtubeUrl);
+    } else {
+      console.log('No YouTube trailer found');
+    }
+  })
+  .catch((error) => {
+    console.error('Error fetching trailer:', error);
+  });
     if (!window.isSecureContext) {
       setError('This application requires a secure context (HTTPS or localhost).');
       return;
@@ -212,7 +257,7 @@ function PlaySharedMovie() {
       const response = await fetch('http://localhost:5002/create-room', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roomId: newRoomId, youtubeLink }),
+        body: JSON.stringify({ roomId: newRoomId, youtubeLink,movieId:movieId }),
       });
       const data = await response.json();
       if (response.ok) {
@@ -671,14 +716,15 @@ function PlaySharedMovie() {
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-900/20 flex items-center justify-center p-4">
         <div className="w-full max-w-md mt-8">
         {error && (
-    <div className="bg-red-900/40 border border-red-500 text-red-300 px-3 py-2 rounded-md mb-4 flex items-center text-sm">
-      <div className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></div>
-      {error}
-    </div>
-  )}
+          <div className="bg-red-900/40 border border-red-500 text-red-300 px-3 py-2 rounded-md mb-4 flex items-center text-sm">
+            <div className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></div>
+            {error}
+          </div>
+        )}
 
-        <div className="h-[70vh] max-h-[490px] bg-black/40 backdrop-blur-lg border border-gray-800 rounded-2xl p-5 shadow-2xl text-sm leading-tight">
+        <div className="w-full max-w-md bg-black/40 backdrop-blur-lg border border-gray-800 rounded-2xl p-6 shadow-2xl text-sm leading-tight mx-auto">
       {/* Join Room Section */}
+      {joinerRoomId && (
       <div className="mb-4">
         <h2 className="text-lg font-semibold text-white mb-3 flex items-center">
           <Users className="w-5 h-5 mr-2 text-red-500" />
@@ -691,15 +737,7 @@ function PlaySharedMovie() {
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Your name"
             className="w-full p-3 bg-gray-900/50 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:border-red-500 focus:outline-none transition-colors"
-            onKeyPress={(e) => e.key === 'Enter' && handleJoin(e)}
-          />
-          <input
-            type="text"
-            value={roomId}
-            onChange={(e) => setRoomId(e.target.value.toUpperCase())}
-            placeholder="Room ID"
-            className="w-full p-3 bg-gray-900/50 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:border-red-500 focus:outline-none transition-colors uppercase"
-            onKeyPress={(e) => e.key === 'Enter' && handleJoin(e)}
+            
           />
           <button
             onClick={handleJoin}
@@ -710,52 +748,48 @@ function PlaySharedMovie() {
           </button>
         </div>
       </div>
-
+    )}
       {/* Divider */}
-      <div className="relative my-5">
+      {/* <div className="relative my-5">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-gray-700"></div>
         </div>
         <div className="relative flex justify-center text-xs">
           <span className="px-3 bg-black/40 text-gray-400">or</span>
         </div>
-      </div>
+      </div> */}
 
       {/* Create Room Section */}
-      <div>
-        <h2 className="text-lg font-semibold text-white mb-3 flex items-center">
-          <Play className="w-5 h-5 mr-2 text-red-500" />
-          Start New Party
+      
+      {!joinerRoomId && (
+        <div className="mb-4 p-4 bg-gray-900/50 border border-gray-700 rounded-md w-full max-w-sm mx-auto space-y-4">
+        <h2 className="text-lg font-semibold text-white flex items-center">
+          <Users className="w-5 h-5 mr-2 text-red-500" />
+          Create watch party
         </h2>
-        <div className="space-y-3">
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Your name"
-            className="w-full p-3 bg-gray-900/50 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:border-red-500 focus:outline-none transition-colors"
-          />
-          <input
-            type="url"
-            value={youtubeLink}
-            onChange={(e) => setYoutubeLink(e.target.value)}
-            placeholder="YouTube video URL"
-            className="w-full p-3 bg-gray-900/50 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:border-red-500 focus:outline-none transition-colors"
-          />
-          <button
-            onClick={createRoom}
-            className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold py-3 rounded-md transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-            disabled={!username.trim() || !youtubeLink.trim()}
-          >
-            Create Party
-          </button>
-        </div>
+    
+        <input
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="Your name"
+          className="w-full p-2 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-400 focus:border-red-500 focus:outline-none transition-colors"
+        />
+    
+        <button
+          onClick={createRoom}
+          className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-md transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          disabled={!username.trim()}
+        >
+          Create Party
+        </button>
+      </div>
+      )}
+      </div>
+
       </div>
     </div>
-
-            </div>
-          </div>
-        );
+    );
       }
 
   return (
@@ -763,10 +797,30 @@ function PlaySharedMovie() {
       {/* Header */}
       <div className="max-w-7xl mx-auto px-4 py-4 mt-16">
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4">
-              <div className="bg-gray-800 px-3 py-1 rounded-full">
-                <span className="text-white text-sm font-medium">Room: {roomId}</span>
-              </div>
+          <div className="bg-gray-800 px-3 py-1 rounded-full flex items-center space-x-2">
+        <span className="text-white text-sm font-large">Room: {roomId}</span>
+            <button
+                onClick={handleCopy}
+                className="text-white hover:text-blue-400 focus:outline-none"
+                title="Copy Room ID"
+            >
+              {/* SVG Copy Icon */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8l6 6v8a2 2 0 01-2 2h-2M8 16v2a2 2 0 002 2h6M8 16h8"
+                />
+              </svg>
+              </button>
+              {copied && <span className="text-green-400 text-xs">Copied!</span>}
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2 text-gray-400">
@@ -909,6 +963,7 @@ function PlaySharedMovie() {
                     />
                   )
                 ))}
+                
               </div>
 
               {Object.keys(participants).length === 0 && (

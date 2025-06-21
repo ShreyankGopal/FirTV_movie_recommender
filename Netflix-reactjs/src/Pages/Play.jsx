@@ -30,11 +30,24 @@ function Play() {
   const { removeFromWatchedMovies, removePopupMessage } =
     useUpdateWatchedMovies();
   const { playMovie } = usePlayMovie();
-
+  const [userRating, setUserRating] = useState(0);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  
 
+  const handleRatingChange = (newRating) => {
+    setUserRating(newRating);
+    
+    axios.post('/addUserMovieRating', {
+      userId, // replace with actual user ID variable
+      movieId: movieDetails.id,
+      rating: newRating
+    })
+    .then(() => setRatingSubmitted(true))
+    .catch((err) => console.error('Failed to submit rating:', err));
+  };
   useEffect(() => {
     if (location.state.From === "MyList") {
       setIsFromMyList(true);
@@ -129,6 +142,7 @@ function Play() {
               <h1 className="text-white font-bold text-3xl mb-2">
                 {movieDetails.original_title || movieDetails.title}
               </h1>
+              
               <StarRatings
                 rating={movieDetails.vote_average / 2}
                 starRatedColor="red"
@@ -137,6 +151,22 @@ function Play() {
                 starDimension="1rem"
                 starSpacing="0.2rem"
               />
+              <div className="mt-3">
+                <h3 className="text-white font-semibold text-sm mb-1">Rate this movie:</h3>
+                <StarRatings
+                  rating={userRating}
+                  starRatedColor="gold"
+                  changeRating={handleRatingChange}
+                  numberOfStars={5}
+                  name="userRating"
+                  starDimension="1.4rem"
+                  starSpacing="0.3rem"
+                  starHoverColor="orange"
+                />
+                {ratingSubmitted && (
+                  <p className="text-green-400 text-xs mt-1">Thank you for rating!</p>
+                )}
+              </div>
               <p className="text-neutral-400 mt-3">{movieDetails.overview}</p>
               <div className="bg-neutral-600 w-full h-[0.1rem] my-5"></div>
 

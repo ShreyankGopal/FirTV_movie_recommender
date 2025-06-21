@@ -41,36 +41,19 @@ function RowPost(props) {
   const navigate = useNavigate();
 
   // Generate room code with movie ID and random 4-digit number
-  const generateRoomCode = (movieId) => {
-    const random4Digits = Math.floor(1000 + Math.random() * 9000);
-    return `${movieId}-${random4Digits}`;
-  };
+  
 
   // Handle watch together button click
   const handleWatchTogether = (movie) => {
-    const code = generateRoomCode(movie.id);
-    setRoomCode(code);
-    setShowRoomCode(!showRoomCode);
-    setCopied(false);
+    
+    navigate(`/play-together/${movie.id}`);
   };
 
   // Copy room code to clipboard
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(roomCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
+  
 
   // Navigate to the shared room
-  const goToRoom = () => {
-    const response = api.post(`/create-room`, { roomId: roomCode });
-    console.log(response);
-    navigate(`/play-together/${roomCode}`);
-  };
+  
 
   useEffect(() => {
     const fetchMovieDetails = async (ids) => {
@@ -444,43 +427,7 @@ function RowPost(props) {
                             </svg>
                             Watch Together
                           </button>
-                          {showRoomCode && (
-                            <div className="flex items-center space-x-2 bg-black bg-opacity-80 p-2 rounded">
-                              <span className="text-white text-sm font-mono bg-gray-900 px-3 py-1 rounded-l">
-                                {roomCode}
-                              </span>
-                              <button
-                                onClick={copyToClipboard}
-                                className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 text-sm font-medium transition-colors duration-150 flex items-center border-l border-gray-600"
-                              >
-                                {copied ? (
-                                  <>
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                    </svg>
-                                    Copied!
-                                  </>
-                                ) : (
-                                  <>
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                      <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
-                                      <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
-                                    </svg>
-                                    Copy Code
-                                  </>
-                                )}
-                              </button>
-                              <button
-                                onClick={goToRoom}
-                                className="flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-medium text-xs px-3 py-1 rounded transition-colors duration-150 whitespace-nowrap"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                                </svg>
-                                Go to Room
-                              </button>
-                            </div>
-                          )}
+                          
                         </div>
                       </div>
                       <div
