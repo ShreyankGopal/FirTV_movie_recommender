@@ -524,7 +524,35 @@ app.post('/analyze-mood', async (req, res) => {
     res.status(500).json({ error: 'Failed to analyze mood' });
   }
 });
+app.post('/getWeatherRecommendation', async (req, res) => {
+  console.log("Hi")
+  const { lat, lon } = req.body;
+  console.log(lat);
+  console.log(lon);
+  try {
+    const flaskResponse = await axios.post('http://localhost:4000/getWeatherRecommendation', {
+      lat,
+      lon
+    });
 
+    const recommendedMovieIds = flaskResponse.data.movie_ids.map(id =>
+      parseInt(id.split('.')[0])
+    );
+    const genres = flaskResponse.data.ranked_genres;
+    const weather_condition = flaskResponse.data.weather_condition;
+    const time_slot = flaskResponse.data.time_slot;
+
+    res.json({
+      weather_condition,
+      time_slot,
+      genres,
+      movie_ids: recommendedMovieIds
+    });
+  } catch (err) {
+    console.error('Error in weather recommendation:', err.message);
+    res.status(500).json({ error: 'Failed to fetch weather-based recommendations' });
+  }
+});
 app.get('/test-cors', (req, res) => {
   res.json({ message: 'CORS test successful' });
 });

@@ -12,6 +12,16 @@ import torch
 from transformers import BertTokenizer, BertModel
 from MoodEmbeddingPrompt import build_embedding_prompt
 from getMovieEmbedding import get_movie_embedding as get_embedding
+from weatherDetector import weather_time_to_genres, get_weather_and_slot
+from dotenv import load_dotenv
+import os
+
+# Load .env file
+load_dotenv()
+
+# Fetch the API key
+OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
+
 app = Flask(__name__)
 CORS(app)
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
@@ -220,5 +230,47 @@ def add_user_embedding():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/getWeatherRecommendation', methods=['POST'])
+def getWeatherRecommendation():
+    data = request.json
+    lat = data.get("lat")
+    lon = data.get("lon")
+    print("lat:",lat)
+    print("lon:", lon)
+    if lat is None or lon is None:
+        return jsonify({"error": "Latitude and longitude are required"}), 400
+
+    # Step 1: Get condition and slot
+    condition, slot = get_weather_and_slot(lat, lon, OPENWEATHER_API_KEY)
+
+    # Step 2: Lookup genres for (condition, slot)
+    genre_tuples = weather_time_to_genres.get((condition, slot), [])
+    ranked_genres = [{"genre": genre, "score": round(score, 3)} for genre, score in genre_tuples]
+
+    # Step 3: Create descriptive prompt for each genre and time
+    descriptions = [
+        f"{genre} vibe for {slot}" for genre, _ in genre_tuples[:3]
+    ]
+    context_text = f"User is experiencing {condition.lower()} weather during {slot}. Suggested genres are: {', '.join([g['genre'] for g in ranked_genres[:3]])}."
+
+    # Step 4: Get embedding
+    weather_embedding = get_bert_embedding(context_text, tokenizer, bert_model)
+
+    # Step 5: Query Pinecone
+    response = pinecone_index.query(
+        vector=weather_embedding.tolist(),
+        top_k=10,
+        namespace="",
+        include_metadata=False
+    )
+    movie_ids = [match['id'].split('.')[0] for match in response['matches']]
+
+    # Step 6: Return
+    return jsonify({
+        "weather_condition": condition,
+        "time_slot": slot,
+        "ranked_genres": ranked_genres,
+        "movie_ids": movie_ids
+    })
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=4000, debug=True)

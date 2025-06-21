@@ -1,3 +1,6 @@
+
+
+// export default MoviePopUp;
 import React, { useState, useEffect, useContext } from "react";
 import { Fade } from "react-reveal";
 import StarRatings from "react-star-ratings";
@@ -8,21 +11,27 @@ import usePlayMovie from "../../CustomHooks/usePlayMovie";
 import useGenereConverter from "../../CustomHooks/useGenereConverter";
 import useUpdateLikedMovies from "../../CustomHooks/useUpdateLikedMovies";
 import useUpdateWatchedMovies from "../../CustomHooks/useUpdateWatchedMovies";
+import { useNavigate } from "react-router-dom";
 
 function MoviePopUp(props) {
   const { showModal, setShowModal } = useContext(PopUpContext);
   const { addToMyList, removeFromMyList, PopupMessage } = useUpdateMylist();
   const { addToLikedMovies, removeFromLikedMovies, LikedMoviePopupMessage } = useUpdateLikedMovies();
-  const { removeFromWatchedMovies, removePopupMessage } =
-    useUpdateWatchedMovies();
+  const { removeFromWatchedMovies, removePopupMessage } = useUpdateWatchedMovies();
   const { playMovie } = usePlayMovie();
   const { convertGenere } = useGenereConverter();
+  const navigate = useNavigate();
 
   const [PopupInfo, setPopupInfo] = useState({});
 
   useEffect(() => {
     setPopupInfo(props.data1);
-  }, []);
+  }, [props.data1]);
+
+  const handleWatchTogether = (movie) => {
+    console.log("hanfled watch together")
+    navigate(`/play-together/${movie.id}`);
+  };
 
   return (
     <>
@@ -59,9 +68,9 @@ function MoviePopUp(props) {
                     <img src={`${imageUrl + PopupInfo.backdrop_path}`} />
                   ) : null}
 
-                  <div className="flex ml-4 items-center -mt-14">
+                  <div className="flex ml-4 items-center -mt-14 space-x-3">
                     <button
-                      className="flex items-center justify-center bg-red-800 text-white active:bg-red-800 font-medium sm:font-bold uppercase text-xs px-4 sm:px-6 md:text-sm  py-2 rounded shadow hover:shadow-lg cursor-pointer outline-none focus:outline-none mr-3 mb-1 ease-linear transition-all duration-150"
+                      className="flex items-center justify-center bg-red-800 text-white active:bg-red-800 font-medium sm:font-bold uppercase text-xs px-4 sm:px-6 md:text-sm py-2 rounded shadow hover:shadow-lg cursor-pointer outline-none focus:outline-none ease-linear transition-all duration-150"
                       type="button"
                       onClick={() => {
                         setShowModal(false);
@@ -81,6 +90,28 @@ function MoviePopUp(props) {
                         />
                       </svg>
                       Play
+                    </button>
+                    <button
+                      className="flex items-center justify-center bg-gray-700 bg-opacity-70 text-white hover:bg-opacity-100 font-medium sm:font-bold uppercase text-xs px-4 sm:px-6 md:text-sm py-2 rounded shadow hover:shadow-lg cursor-pointer outline-none focus:outline-none ease-linear transition-all duration-150"
+                      type="button"
+                      onClick={() => {
+                        setShowModal(false);
+                        handleWatchTogether(PopupInfo);
+                      }}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 mr-1"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      Watch Together
                     </button>
                     {props.from === "LikedMovies" ? (
                       <div
@@ -175,17 +206,14 @@ function MoviePopUp(props) {
                             {PopupInfo.original_language}
                           </p>
                         </h1>
-
                         <h1 className="flex text-neutral-400 text-sm leading-relaxed">
                           Genere :
                           {PopupInfo.genre_ids &&
-                            convertGenere(PopupInfo.genre_ids).map((genere) => {
-                              return (
-                                <span className="text-white ml-2 font-medium">
-                                  {genere}
-                                </span>
-                              );
-                            })}
+                            convertGenere(PopupInfo.genre_ids).map((genere) => (
+                              <span className="text-white ml-2 font-medium">
+                                {genere}
+                              </span>
+                            ))}
                         </h1>
                       </div>
                     </Fade>
@@ -193,7 +221,7 @@ function MoviePopUp(props) {
                     <div className="flex justify-between p-2">
                       {props.from === "MyList" ? (
                         <button
-                          className="group flex items-center justify-center border-[0.7px] border-white text-white font-medium sm:font-bold text-xs px-4 mr-4 sm:px-6 md:text-sm  py-3 rounded shadow hover:shadow-lg hover:bg-white hover:text-red-700 outline-none focus:outline-none mb-1 ease-linear transition-all duration-150"
+                          className="group flex items-center justify-center border-[0.7px] border-white text-white font-medium sm:font-bold text-xs px-4 mr-4 sm:px-6 md:text-sm py-3 rounded shadow hover:shadow-lg hover:bg-white hover:text-red-700 outline-none focus:outline-none mb-1 ease-linear transition-all duration-150"
                           type="button"
                           onClick={() => removeFromMyList(PopupInfo)}
                         >
@@ -217,7 +245,7 @@ function MoviePopUp(props) {
                         <>
                           {props.from === "WatchedMovies" ? (
                             <button
-                              className="group flex items-center justify-center border-[0.7px] border-white text-white font-medium sm:font-bold text-xs px-4 mr-4 sm:px-6 md:text-sm  py-3 rounded shadow hover:shadow-lg hover:bg-white hover:text-red-700 outline-none focus:outline-none mb-1 ease-linear transition-all duration-150"
+                              className="group flex items-center justify-center border-[0.7px] border-white text-white font-medium sm:font-bold text-xs px-4 mr-4 sm:px-6 md:text-sm py-3 rounded shadow hover:shadow-lg hover:bg-white hover:text-red-700 outline-none focus:outline-none mb-1 ease-linear transition-all duration-150"
                               type="button"
                               onClick={() => removeFromWatchedMovies(PopupInfo)}
                             >
@@ -239,7 +267,7 @@ function MoviePopUp(props) {
                             </button>
                           ) : (
                             <button
-                              className="group flex items-center justify-center border-[0.7px] border-white text-white font-medium sm:font-bold text-xs px-4 mr-4 sm:px-6 md:text-sm  py-3 rounded shadow hover:shadow-lg hover:bg-white hover:text-red-700 outline-none focus:outline-none mb-1 ease-linear transition-all duration-150"
+                              className="group flex items-center justify-center border-[0.7px] border-white text-white font-medium sm:font-bold text-xs px-4 mr-4 sm:px-6 md:text-sm py-3 rounded shadow hover:shadow-lg hover:bg-white hover:text-red-700 outline-none focus:outline-none mb-1 ease-linear transition-all duration-150"
                               type="button"
                               onClick={() => addToMyList(PopupInfo)}
                             >
