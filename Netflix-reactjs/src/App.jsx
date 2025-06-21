@@ -89,7 +89,7 @@ const SelectPreferences = lazy(() => import("./Pages/SelectPreferences"));
 const MoodModal = lazy(() => import("./Pages/MoodModal"));
 const JoinPartyModal = lazy(() => import("./Pages/JoinPartyModal"));
 const PlaySharedMovie = lazy(() => import("./Pages/PlaySharedMovie"));
-
+const Weather= lazy(()=> import("./Pages/WeatherRecommendationDisplay"))
 import { AuthContext } from "./Context/UserContext";
 import { auth } from "./Firebase/FirebaseConfig";
 import { onAuthStateChanged } from "firebase/auth";
@@ -141,6 +141,7 @@ function App() {
               <Route path="/play/:id" element={<Play />} />
               <Route path="/select-preferences" element={<SelectPreferences />} /> {/* 👈 New route */}
               <Route path="/play-together/:movieId" element={<PlaySharedMovie />} /> {/* 👈 New route */}
+              <Route path="/weather" element={<Weather />} />
             </>
           )}
           <Route path="/signin" element={<SignIn />} />

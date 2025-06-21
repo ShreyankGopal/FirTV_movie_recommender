@@ -154,7 +154,10 @@ function Navbar(props) {
                     >
                       Join Party
                     </button> */}
-
+                    <Link
+                      to={"/weather"}
+                      className="py-2 font-medium text-white transition ease-in-out delay-150 rounded-md cursor-pointer hover:text-red-800 lg:px-3 text-m"
+                    >Weather</Link>
                     <button
                       onClick={() => window.dispatchEvent(new Event("open-join-party-modal"))}
                       className="py-2 font-medium text-white transition ease-in-out delay-150 rounded-md cursor-pointer hover:text-red-800 lg:px-3 text-m"
