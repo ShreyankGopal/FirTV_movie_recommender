@@ -117,6 +117,10 @@ function Navbar(props) {
                     >
                       Emotions
                     </button>
+                    <Link
+                      to={"/weather"}
+                      className="py-2 font-medium text-white transition ease-in-out delay-150 rounded-md cursor-pointer hover:text-red-800 lg:px-3 text-m"
+                    >Weather</Link>
                   </div>
                 </div>
               </div>
