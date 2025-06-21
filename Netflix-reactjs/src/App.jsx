@@ -87,6 +87,7 @@ const LikedMovies = lazy(() => import("./Pages/LikedMovies"));
 const History = lazy(() => import("./Pages/History"));
 const SelectPreferences = lazy(() => import("./Pages/SelectPreferences"));
 const MoodModal = lazy(() => import("./Pages/MoodModal"));
+const JoinPartyModal = lazy(() => import("./Pages/JoinPartyModal"));
 const PlaySharedMovie = lazy(() => import("./Pages/PlaySharedMovie"));
 
 import { AuthContext } from "./Context/UserContext";
@@ -101,11 +102,17 @@ function App() {
   const location = useLocation(); // 👈 Add this line
   const hideNavbar = location.pathname === "/select-preferences"; // 👈 And this
   const [showMoodModal, setShowMoodModal] = useState(false);
+  const [showJoinPartyModal, setShowJoinPartyModal] = useState(false);
 
   useEffect(() => {
     const handleOpenMoodModal = () => setShowMoodModal(true);
     window.addEventListener("open-mood-modal", handleOpenMoodModal);
     return () => window.removeEventListener("open-mood-modal", handleOpenMoodModal);
+  }, []);
+  useEffect(() => {
+    const handleOpenJoinPartyModal = () => setShowJoinPartyModal(true);
+    window.addEventListener("open-join-party-modal", handleOpenJoinPartyModal);
+    return () => window.removeEventListener("open-join-party-modal", handleOpenJoinPartyModal);
   }, []);
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -145,6 +152,11 @@ function App() {
       {showMoodModal && (
         <Suspense fallback={<Loading />}>
           <MoodModal onClose={() => setShowMoodModal(false)} />
+        </Suspense>
+      )}
+      {showJoinPartyModal && (
+        <Suspense fallback={<Loading />}>
+          <JoinPartyModal onClose={() => setShowJoinPartyModal(false)} />
         </Suspense>
       )}
     </div>

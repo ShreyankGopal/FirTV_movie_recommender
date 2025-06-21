@@ -5,6 +5,7 @@ import http from 'http';
 import mediasoup from 'mediasoup';
 import preferenceSelection from './PreferenceSelection.js';
 import axios from 'axios';
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -43,16 +44,17 @@ const mediaCodecs = [
 ];
 
 let worker;
+
 app.get('/getMovieId/:roomId', (req, res) => {
   const { roomId } = req.params;
   const movieId = roomToMovieId.get(roomId);
-  console.log(movieId)
   if (movieId) {
     res.status(200).json({ movieId });
   } else {
     res.status(404).json({ error: 'Room not found' });
   }
 });
+
 (async () => {
   worker = await mediasoup.createWorker({
     rtcMinPort: 10000,
@@ -67,7 +69,6 @@ async function createRouterForRoom() {
 
 app.get('/play-together/:roomId', async (req, res) => {
   const { roomId } = req.params;
-  console.log(rooms)
   if (rooms.has(roomId)) {
     res.status(200).json({ message: 'Room exists' });
   } else {
@@ -76,7 +77,7 @@ app.get('/play-together/:roomId', async (req, res) => {
 });
 
 app.post('/create-room', async (req, res) => {
-  const { roomId, youtubeLink,movieId } = req.body;
+  const { roomId, youtubeLink, movieId } = req.body;
   if (!roomId || !youtubeLink) {
     return res.status(400).json({ error: 'Room ID and YouTube link required' });
   }
@@ -88,10 +89,10 @@ app.post('/create-room', async (req, res) => {
     const router = await createRouterForRoom();
     rooms.set(roomId, { 
       router, 
-      participants: new Map(), 
+      participants: [], // Changed to array to track join order
       producers: new Map(),
       youtubeLink,
-      creator: null,
+      currentHostId: null, // Track current host
       videoState: { state: 'paused', time: 0, timestamp: 0 }
     });
     roomToMovieId.set(roomId, movieId);
@@ -120,10 +121,10 @@ io.on('connection', (socket) => {
         const router = await createRouterForRoom();
         room = { 
           router, 
-          participants: new Map(), 
+          participants: [],
           producers: new Map(),
           youtubeLink: '',
-          creator: null,
+          currentHostId: null,
           videoState: { state: 'paused', time: 0, timestamp: 0 }
         };
         rooms.set(roomId, room);
@@ -133,19 +134,21 @@ io.on('connection', (socket) => {
       }
     }
 
-    room.participants.set(socket.id, { username });
+    // Add participant to array with join timestamp
+    room.participants.push({ socketId: socket.id, username, joinTime: Date.now() });
     socket.join(roomId);
     socket.currentRoom = roomId;
 
-    if (room.participants.size === 1) {
-      room.creator = socket.id;
+    // Set first participant as host
+    if (room.participants.length === 1) {
+      room.currentHostId = socket.id;
     }
 
     const rtpCapabilities = room.router.rtpCapabilities;
-    const existingProducers = Array.from(room.producers.entries()).map(([socketId, producers]) => ({
+    const existingProducers = room.participants.map(({ socketId, username }) => ({
       socketId,
-      username: room.participants.get(socketId)?.username || 'Unknown',
-      producers: producers.map((p) => ({ id: p.id, kind: p.kind })),
+      username,
+      producers: (room.producers.get(socketId) || []).map(p => ({ id: p.id, kind: p.kind })),
     }));
 
     const currentTime = room.videoState.state === 'playing' ?
@@ -156,7 +159,8 @@ io.on('connection', (socket) => {
       rtpCapabilities,
       existingProducers,
       youtubeLink: room.youtubeLink,
-      isCreator: room.creator === socket.id,
+      isCreator: room.currentHostId === socket.id,
+      currentHostId: room.currentHostId, // Include current host
       videoState: room.videoState.state,
       videoTime: currentTime
     });
@@ -167,7 +171,6 @@ io.on('connection', (socket) => {
 
   socket.on('create-producer-transport', async ({ roomId }, callback) => {
     console.log('Create producer transport request for room:', roomId, 'by socket:', socket.id);
-    console.log('Room:', rooms.get(roomId));
     const room = rooms.get(roomId);
     if (!room) {
       console.log('Room does not exist during producer transport creation:', roomId);
@@ -382,7 +385,7 @@ io.on('connection', (socket) => {
 
   socket.on('play-video', ({ roomId, time }) => {
     const room = rooms.get(roomId);
-    if (room && room.creator === socket.id) {
+    if (room && room.currentHostId === socket.id) {
       room.videoState = { state: 'playing', time, timestamp: Date.now() };
       io.in(roomId).emit('play-video', { time });
     }
@@ -390,9 +393,23 @@ io.on('connection', (socket) => {
 
   socket.on('pause-video', ({ roomId, time }) => {
     const room = rooms.get(roomId);
-    if (room && room.creator === socket.id) {
+    if (room && room.currentHostId === socket.id) {
       room.videoState = { state: 'paused', time, timestamp: Date.now() };
       io.in(roomId).emit('pause-video', { time });
+    }
+  });
+
+  socket.on('toggle-camera', ({ roomId, socketId, cameraEnabled }) => {
+    const room = rooms.get(roomId);
+    if (room) {
+      io.in(roomId).emit('toggle-camera', { socketId, cameraEnabled });
+    }
+  });
+
+  socket.on('toggle-mic', ({ roomId, socketId, micEnabled }) => {
+    const room = rooms.get(roomId);
+    if (room) {
+      io.in(roomId).emit('toggle-mic', { socketId, micEnabled });
     }
   });
 
@@ -402,7 +419,8 @@ io.on('connection', (socket) => {
     if (socket.currentRoom) {
       const room = rooms.get(socket.currentRoom);
       if (room) {
-        room.participants.delete(socket.id);
+        // Remove participant from array
+        room.participants = room.participants.filter(p => p.socketId !== socket.id);
         const producers = room.producers.get(socket.id);
         if (producers) {
           producers.forEach(({ producer }) => {
@@ -412,7 +430,14 @@ io.on('connection', (socket) => {
           room.producers.delete(socket.id);
         }
         socket.to(socket.currentRoom).emit('participant-left', { socketId: socket.id });
-        if (room.participants.size === 0) {
+
+        // Handle host succession
+        if (room.currentHostId === socket.id && room.participants.length > 0) {
+          // Select the next participant as host (first in remaining array)
+          room.currentHostId = room.participants[0].socketId;
+          console.log(`New host assigned: ${room.currentHostId} for room ${socket.currentRoom}`);
+          io.in(socket.currentRoom).emit('host-changed', { newHostId: room.currentHostId });
+        } else if (room.participants.length === 0) {
           roomToMovieId.delete(socket.currentRoom);
           console.log('Closing router for empty room:', socket.currentRoom);
           room.router.close();
@@ -455,7 +480,7 @@ process.on('SIGINT', () => {
   }
   process.exit(0);
 });
-//recommendation routes---------------
+
 app.use('/', preferenceSelection);
 
 app.post("/getRecommendation", async (req, res) => {
@@ -481,19 +506,17 @@ app.post('/analyze-mood', async (req, res) => {
   const { text, emoji, user_id } = req.body;
 
   try {
-    // Call Flask backend
     const flaskResponse = await axios.post("http://localhost:4000/getMoodRecommendation", {
       text,
       emoji,
       user_id
     });
 
-    // Extract and forward the recommended movie IDs
     const recommendedMovieIds = flaskResponse.data.movie_ids.map(id =>
-      parseInt(id.split('.')[0]) // Convert '27710.0' to 27710
+      parseInt(id.split('.')[0])
     );
     const genres = flaskResponse.data.ranked_genres;
-    console.log("printing the Mood Movies ", recommendedMovieIds)
+    console.log("printing the Mood Movies ", recommendedMovieIds);
     res.json({ movie_ids: recommendedMovieIds, genres: genres });
   } catch (err) {
     console.error('Error in Node.js backend:', err.message);
@@ -504,6 +527,7 @@ app.post('/analyze-mood', async (req, res) => {
 app.get('/test-cors', (req, res) => {
   res.json({ message: 'CORS test successful' });
 });
+
 server.listen(5002, () => {
   console.log('Server + Socket.IO running on http://localhost:5002');
 });

@@ -73,15 +73,15 @@ def analyze_mood(text, emoji):
     # From emoji (optional boost)
     emoji_genres = emoji_to_genres.get(emoji, [])
     for g in emoji_genres:
-        genre_scores[g] += 0.2
+        genre_scores[g] += 0.1
         genre_scores[g] = min(genre_scores[g], 1)
 
     # Filter and sort genres with score > 0.6
     ranked_genres = sorted(
-        [{"genre": genre, "score": round(score, 3)} for genre, score in genre_scores.items() if score > 0.1],
+        [{"genre": genre, "score": round(score, 3)} for genre, score in genre_scores.items()],
         key=lambda x: x["score"],
         reverse=True
-    )[:3]
+    )[:4]
 
     print("Filtered Genres:", ranked_genres)
     print("Filtered Emotions:", top_emotions)

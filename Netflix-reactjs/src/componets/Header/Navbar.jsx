@@ -10,6 +10,7 @@ function Navbar(props) {
   const [profilePic, setProfilePic] = useState("");
   const [isJoinCardOpen, setIsJoinCardOpen] = useState(false);
   const [roomId, setRoomId] = useState("");
+  const [error, setError] = useState("");
 
   const navigate = useNavigate();
 
@@ -57,23 +58,27 @@ function Navbar(props) {
     setIsJoinCardOpen(true);
   };
 
-  const handleCloseCard = () => {
-    setIsJoinCardOpen(false);
-    setRoomId("");
-  };
+  // const handleCloseCard = () => {
+  //   setIsJoinCardOpen(false);
+  //   setRoomId("");
+  // };
 
-  const handleJoinRoom = async() => {
-    if (roomId) {
-      const movieId = await axios.get(`http://localhost:5002/getMovieId/${roomId}`)
-      console.log(movieId.data.movieId)
-      setIsJoinCardOpen(false);
-      
-      navigate(`/play-together/${movieId.data.movieId}`, { state: { roomId: roomId } });
-      
-    } else {
-      alert("Please enter a room ID");
-    }
-  };
+  // const handleJoinRoom = async () => {
+  //   if (roomId) {
+  //     try {
+  //       const movieId = await axios.get(`http://localhost:5002/getMovieId/${roomId}`);
+  //       console.log(movieId);
+  //       setIsJoinCardOpen(false);
+  //       setError(""); // Clear any previous error
+  //       navigate(`/play-together/${movieId.data.movieId}`, { state: { roomId: roomId } });
+  //     } catch (error) {
+  //       console.error("Error fetching movieId:", error);
+  //       setError("Invalid Room ID. Please try again."); // Set error to be shown
+  //     }
+  //   } else {
+  //     setError("Please enter a Room ID");
+  //   }
+  // };  
 
   return (
     <Fade>
@@ -137,18 +142,26 @@ function Navbar(props) {
                     </Link>
 
                     <button
-                      onClick={handleJoinParty}
-                      className="py-2 font-medium text-white transition ease-in-out delay-150 rounded-md cursor-pointer hover:text-red-800 lg:px-3 text-m"
-                    >
-                      Join Party
-                    </button>
-
-                    <button
                       onClick={() => window.dispatchEvent(new Event("open-mood-modal"))}
                       className="py-2 font-medium text-white transition ease-in-out delay-150 rounded-md cursor-pointer hover:text-red-800 lg:px-3 text-m"
                     >
                       Emotions
                     </button>
+
+                    {/* <button
+                      onClick={handleJoinParty}
+                      className="py-2 font-medium text-white transition ease-in-out delay-150 rounded-md cursor-pointer hover:text-red-800 lg:px-3 text-m"
+                    >
+                      Join Party
+                    </button> */}
+
+                    <button
+                      onClick={() => window.dispatchEvent(new Event("open-join-party-modal"))}
+                      className="py-2 font-medium text-white transition ease-in-out delay-150 rounded-md cursor-pointer hover:text-red-800 lg:px-3 text-m"
+                    >
+                      Join Party
+                    </button>
+
                   </div>
                 </div>
               </div>
@@ -353,8 +366,8 @@ function Navbar(props) {
           </Transition>
 
           {/* Join Party Card */}
-          {isJoinCardOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 pt-20">
+          {/* {isJoinCardOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 pt-20 mt-50">
               <div className="relative bg-black p-6 rounded-lg shadow-lg w-96">
                 <button
                   onClick={handleCloseCard}
@@ -366,10 +379,14 @@ function Navbar(props) {
                 <input
                   type="text"
                   value={roomId}
-                  onChange={(e) => setRoomId(e.target.value)}
+                  onChange={(e) => {
+                    setRoomId(e.target.value);
+                    setError(""); // clear error on input change
+                  }}
                   placeholder="Enter Room ID"
-                  className="w-full p-2 mb-4 border rounded text-white bg-gray-800"
+                  className="w-full p-2 mb-2 border rounded text-white bg-gray-800"
                 />
+                {error && <p className="text-red-500 text-sm mb-2 text-left ml-1">{error}</p>}
                 <button
                   onClick={handleJoinRoom}
                   className="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700"
@@ -378,7 +395,9 @@ function Navbar(props) {
                 </button>
               </div>
             </div>
-          )}
+          )} */}
+
+
         </nav>
       </header>
     </Fade>

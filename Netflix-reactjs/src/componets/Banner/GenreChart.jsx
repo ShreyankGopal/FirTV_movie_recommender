@@ -149,7 +149,7 @@ const CustomTooltip = ({ active, payload }) => {
 // Animated legend component
 const AnimatedLegend = ({ data, activeIndex, onLegendClick }) => {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-6">
+    <div className="grid grid-cols-2 md:grid-cols-2 gap-3 mt-6">
       {data.map((entry, index) => {
         const colorData = ADVANCED_COLORS[index % ADVANCED_COLORS.length];
         const isActive = activeIndex === index;
