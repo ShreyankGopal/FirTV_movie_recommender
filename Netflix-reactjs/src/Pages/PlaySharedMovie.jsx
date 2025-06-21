@@ -740,7 +740,7 @@ function PlaySharedMovie() {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Your name"
+                    placeholder="Enter your name"
                     className="w-full p-3 bg-gray-900/50 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:border-red-500 focus:outline-none transition-colors"
                   />
                   <button

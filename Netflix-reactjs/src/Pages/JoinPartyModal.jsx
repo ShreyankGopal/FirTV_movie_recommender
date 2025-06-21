@@ -21,9 +21,17 @@ const JoinPartyModal = ({ onClose }) => {
         console.log(movieId);
         setError('');
         onClose();
-        navigate(`/play-together/${movieId.data.movieId}`, {
-          state: { roomId: roomId },
-        });
+  
+        // First navigate to home
+        navigate('/');
+  
+        // Then after a short delay, navigate to the Join Party page
+        setTimeout(() => {
+          navigate(`/play-together/${movieId.data.movieId}`, {
+            state: { roomId: roomId },
+          });
+        }, 1); // small delay to allow React Router to re-render
+  
       } catch (error) {
         console.error("Error fetching movieId:", error);
         setError("Invalid Room ID. Please try again.");
@@ -32,10 +40,11 @@ const JoinPartyModal = ({ onClose }) => {
       setError("Please enter a Room ID");
     }
   };
+  
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="relative bg-black p-6 rounded-lg shadow-lg w-96">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 ">
+      <div className="relative bg-black p-6 rounded-lg shadow-lg w-96 border-2 border-red-600">
         <button
                   onClick={onClose}
                   className="absolute top-4 right-4 text-red-600 hover:text-red-400"
@@ -43,7 +52,7 @@ const JoinPartyModal = ({ onClose }) => {
                   <FaTimes size={20} />
                 </button>
         <h2 className="text-xl font-bold text-white mb-4 text-center">
-          Join Party
+          Join Watch Party
         </h2>
         <input
           type="text"
