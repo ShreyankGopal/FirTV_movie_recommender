@@ -9,7 +9,7 @@ import useUpdateWatchedMovies from "../../CustomHooks/useUpdateWatchedMovies";
 import useUpdateLikedMovies from "../../CustomHooks/useUpdateLikedMovies";
 import useGenereConverter from "../../CustomHooks/useGenereConverter";
 import { db } from "../../Firebase/FirebaseConfig";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { AuthContext } from "../../Context/UserContext";
 import { PopUpContext } from "../../Context/moviePopUpContext";
 import axios from "../../axios";
@@ -35,14 +35,22 @@ function UserMovieSection(props) {
 
   const navigate = useNavigate();
 
-  function getMovies() {
-    getDoc(doc(db, props.from, User.uid)).then((result) => {
-      const mv = result.data();
-      setMyMovies(mv.movies);
-      if (mv.movies.length == 0) {
-        setIsResultEmpty(true);
-      }
-    });
+  async function getMovies() {
+    const coll = props.from;                // either "MyList", "WatchedMovies", or "LikedMovies"
+    const docRef = doc(db, coll, User.uid);
+    const snap   = await getDoc(docRef);
+  
+    if (!snap.exists()) {
+      // auto-create with empty array
+      await setDoc(docRef, { movies: [] });
+      setMyMovies([]);
+      setIsResultEmpty(true);
+      return;
+    }
+  
+    const mv = snap.data();
+    setMyMovies(mv.movies);
+    setIsResultEmpty(mv.movies.length === 0);
   }
 
   useEffect(() => {

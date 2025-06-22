@@ -145,13 +145,7 @@ const MoodModal = ({ onClose, onMoodSelected }) => {
   
   // Array of dynamic messages
   const loadingMessages = [
-    "Analyzing your mood...",
-    "Understanding your emotions...",
-    "Computing personalized choices...",
-    "Gathering insights...",
-    "Processing your feelings...",
-    "Preparing recommendations...",
-    "Almost ready..."
+    "Beep Boop... Analyzing Emotions"
   ];
 
   // Effect to cycle through loading messages
