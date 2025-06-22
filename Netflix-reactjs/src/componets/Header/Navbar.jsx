@@ -4,6 +4,7 @@ import { Fade } from "react-reveal";
 import { Link, useNavigate } from "react-router-dom";
 import { getAuth, signOut } from "firebase/auth";
 import { AuthContext } from "../../Context/UserContext";
+import sapflixLogo from '../../images/sapflix.png';
 import axios from "axios";
 function Navbar(props) {
   const { User } = useContext(AuthContext);
@@ -98,10 +99,10 @@ function Navbar(props) {
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <img
-                    className="h-6 cursor-pointer w-18"
-                    src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Netflix_2015_logo.svg/1920px-Netflix_2015_logo.svg.png"
-                    alt="NETFLIX"
+                <img
+                    className="h-8 w-18"
+                    src={sapflixLogo}
+                    alt="SAPFLIX"
                   />
                 </div>
                 <div className="hidden md:block">
