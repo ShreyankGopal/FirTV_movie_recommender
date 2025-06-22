@@ -22,7 +22,7 @@ if index_name not in client.list_indexes().names():
 
 # Connect to index
 index = client.Index(index_name)
-
+index.delete(deleteAll=True, namespace="")
 # Prepare data
 vectors = [
     (str(row['movieId']), row[1:].tolist())  # (id, embedding)
@@ -30,6 +30,6 @@ vectors = [
 ]
 
 # Upsert to Pinecone
-batch_size = 100
+batch_size = 500
 for i in range(0, len(vectors), batch_size):
     index.upsert(vectors[i:i + batch_size])
