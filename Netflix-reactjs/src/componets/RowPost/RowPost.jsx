@@ -60,21 +60,26 @@ function RowPost(props) {
       try {
         const promises = ids.map(id =>
           axios.get(`https://api.themoviedb.org/3/movie/${id}?api_key=${API_KEY}`)
+            .then(res => ({ success: true, data: res.data }))
+            .catch(err => {
+              console.error(`Error fetching movie ${id}:`, err.message);
+              return { success: false };
+            })
         );
-        const responses = await Promise.all(promises);
-        const fullMovies = responses.map(res => res.data);
+        const results = await Promise.all(promises);
+        const fullMovies = results
+          .filter(r => r.success)
+          .map(r => r.data);
         setMovies(fullMovies);
       } catch (error) {
-        console.error("Error fetching movie details:", error);
+        console.error("Unexpected error fetching movie details:", error);
       }
     };
   
     if (props.movieData != null) {
       if (typeof props.movieData[0] === "number") {
-        // It's a list of movie IDs
         fetchMovieDetails(props.movieData);
       } else {
-        // Already full movie objects
         setMovies(props.movieData);
       }
     } else {
@@ -83,6 +88,7 @@ function RowPost(props) {
       });
     }
   }, [props.movieData, props.url]);
+  
 
   const customSettings = {
     breakpoints: {

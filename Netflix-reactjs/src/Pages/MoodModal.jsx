@@ -105,8 +105,7 @@
 // };
 
 // export default MoodModal;
-
-import React, { useState, useRef,useContext } from "react";
+import React, { useState, useRef, useContext, useEffect } from "react";
 import { FaMicrophone, FaTimes } from "react-icons/fa";
 
 import Lottie from "lottie-react";
@@ -121,6 +120,7 @@ import thinking from "../animations/thinking.json";
 import api from "../api";
 import { AuthContext } from "../Context/UserContext";
 import { useNavigate } from "react-router-dom";
+
 const MoodModal = ({ onClose, onMoodSelected }) => {
   const [moodText, setMoodText] = useState(""); // 💡 Used in input field
   const [listening, setListening] = useState(false);
@@ -128,41 +128,52 @@ const MoodModal = ({ onClose, onMoodSelected }) => {
   const recognitionRef = useRef(null);
   const { User } = useContext(AuthContext);
   const navigate = useNavigate();
-//   const emojis = [
-//     { emoji: "😊", value: "happy" },
-//     { emoji: "😢", value: "sad" },
-//     { emoji: "😠", value: "angry" },
-//     { emoji: "😴", value: "tired" },
-//     { emoji: "😍", value: "love" },
-//     { emoji: "😎", value: "cool" },
-//     { emoji: "🤯", value: "shocked" },
-//     { emoji: "🤔", value: "thinking" }
-//   ];
-    const emojis = [
-        { value: "love", animation: love },
-        { value: "cool", animation: cool },
-        { value: "shocked", animation: shocked },
-        { value: "happy", animation: happy },
-        { value: "thinking", animation: thinking },
-        { value: "sad", animation: sad },
-        { value: "angry", animation: angry },
-        { value: "tired", animation: tired }
-        // add more
-    ];
 
-  const AnimatedEmoji = ({ selected, onClick, animation }) => (
-    <button
-      onClick={onClick}
-      className={`w-20 h-20 transition-transform duration-300 ${
-        selected ? "scale-110 border-red-500 border-2 rounded-full" : ""
-      }`}
-    >
-      <Lottie animationData={animation} loop={true} />
-    </button>
-  );
+  const emojis = [
+    { value: "love", animation: love },
+    { value: "cool", animation: cool },
+    { value: "shocked", animation: shocked },
+    { value: "happy", animation: happy },
+    { value: "thinking", animation: thinking },
+    { value: "sad", animation: sad },
+    { value: "angry", animation: angry },
+    { value: "tired", animation: tired }
+  ];
+
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
+  
+  // Array of dynamic messages
+  const loadingMessages = [
+    "Analyzing your mood...",
+    "Understanding your emotions...",
+    "Computing personalized choices...",
+    "Gathering insights...",
+    "Processing your feelings...",
+    "Preparing recommendations...",
+    "Almost ready..."
+  ];
+
+  // Effect to cycle through loading messages
+  useEffect(() => {
+    let interval;
+    if (isAnalyzing) {
+      let messageIndex = 0;
+      setLoadingMessage(loadingMessages[0]);
+      
+      interval = setInterval(() => {
+        messageIndex = (messageIndex + 1) % loadingMessages.length;
+        setLoadingMessage(loadingMessages[messageIndex]);
+      }, 5000); // Change message every 1.5 seconds
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isAnalyzing]);
 
   const SpeechRecognition =
-  window.SpeechRecognition || window.webkitSpeechRecognition;
+    window.SpeechRecognition || window.webkitSpeechRecognition;
   const recognition = SpeechRecognition ? new SpeechRecognition() : null;
 
   const handleVoiceInput = () => {
@@ -197,79 +208,108 @@ const MoodModal = ({ onClose, onMoodSelected }) => {
   };
 
   const handleSubmit = async () => {
-    console.log("Mood text:", moodText);
-    console.log("Selected mood emoji value:", selectedEmoji);
-    const response = await api.post("/analyze-mood", {
-      text: moodText,
-      emoji: selectedEmoji,
-      user_id: User.uid
-    });
-    
-  
-    const result = response.data;
-  //  console.log("Detected genres:", result);
-    console.log("Recommended movie IDs:", result);
-    onClose();
-    navigate("/mood-recommendation-display", {
-      state: { recommendedMovies: result },
-    });
+    try {
+      setIsAnalyzing(true);
+      
+      console.log("Mood text:", moodText);
+      console.log("Selected mood emoji value:", selectedEmoji);
+      
+      const response = await api.post("/analyze-mood", {
+        text: moodText,
+        emoji: selectedEmoji,
+        user_id: User.uid
+      });
+      
+      const result = response.data;
+      console.log("Recommended movie IDs:", result);
+      
+      onClose();
+      navigate("/mood-recommendation-display", {
+        state: { recommendedMovies: result },
+      });
+      
+    } catch (error) {
+      console.error("Error analyzing mood:", error);
+      // Handle error - maybe show error message to user
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
-  
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80">
       <div className="relative w-full max-w-lg p-6 bg-black rounded-lg shadow-lg text-white border-2 border-red-600">
+        {/* Loading overlay */}
+        {isAnalyzing && (
+          <div className="absolute inset-0 bg-black bg-opacity-90 rounded-lg flex flex-col items-center justify-center z-10">
+            {/* Animated dots */}
+            <div className="flex justify-center space-x-1 mb-4">
+              <div className="w-3 h-3 bg-red-500 rounded-full animate-bounce"></div>
+              <div className="w-3 h-3 bg-red-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+              <div className="w-3 h-3 bg-red-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+            </div>
+            
+            {/* Dynamic loading message */}
+            <p className="text-lg font-medium text-white transition-opacity duration-300 text-center">
+              {loadingMessage}
+            </p>
+          </div>
+        )}
+
         {/* Close (X) button */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-red-600 hover:text-red-400"
+          disabled={isAnalyzing}
         >
           <FaTimes size={20} />
         </button>
 
         {/* Centered heading */}
-        <h2 className="text-white text-2xl font-semibold text-center mt-4 mb-6">
+        <h2 className="text-white text-2xl font-semibold text-center mt-4 mb-8">
           How are you feeling today?
         </h2>
 
         {/* Mood emoji buttons */}
-        {/* <div className="flex justify-center gap-4 mb-4 mt-4">
-        {emojis.map(({ emoji, value }) => (
-            <button
-                key={value}
-                onClick={() => setSelectedEmoji(value)}
-                className={`text-2xl transition-transform duration-150 ${
-                selectedEmoji === value ? "scale-125" : ""
-                }`}
-            >
-                {emoji}
-            </button>
-            ))}
-        </div> */}
-        <div className="flex justify-center gap-4 mb-4 mt-4">
+        <div className="grid grid-cols-4 gap-y-4 gap-x-0 mb-4 mt-4 justify-items-center">
         {emojis.map(({ value, animation }) => (
-            <button
+          <button
             key={value}
             onClick={() => setSelectedEmoji(selectedEmoji === value ? null : value)}
-            className={`w-20 h-20 rounded-full transition-transform duration-300 p-1 ${
-                selectedEmoji === value ? "scale-125" : ""
-            }`}
-            >
-            <Lottie animationData={animation} loop={true} />
-            </button>
+            disabled={isAnalyzing}
+            className={`w-14 h-14 rounded-full transition-transform duration-300 p-1 ${
+              selectedEmoji === value ? "scale-110" : ""
+            } ${isAnalyzing ? "opacity-50" : ""}`}
+          >
+            <Lottie
+              animationData={animation}
+              loop={true}
+              style={{ width: '100%', height: '100%' }}
+            />
+          </button>
         ))}
-        </div>
+      </div>
+
 
         {/* Text Input with Mic */}
-        <div className="flex items-center border border-white rounded px-3 py-2 mb-8 mt-8">
+        <div className="flex items-center border border-white rounded px-3 py-2 mb-8 mt-10">
           <input
             type="text"
             value={moodText}
             onChange={(e) => setMoodText(e.target.value)}
             placeholder="Tell us more..."
-            className="flex-1 bg-transparent outline-none text-white placeholder-gray-400"
+            disabled={isAnalyzing}
+            className={`flex-1 bg-transparent outline-none text-white placeholder-gray-400 ${
+              isAnalyzing ? "opacity-50" : ""
+            }`}
           />
-          <button onClick={handleVoiceInput} className="ml-3 text-white hover:text-red-500">
+          <button 
+            onClick={handleVoiceInput} 
+            disabled={isAnalyzing}
+            className={`ml-3 text-white hover:text-red-500 ${
+              isAnalyzing ? "opacity-50" : ""
+            }`}
+          >
             <FaMicrophone />
           </button>
         </div>
@@ -278,9 +318,14 @@ const MoodModal = ({ onClose, onMoodSelected }) => {
         <div className="flex justify-end">
           <button
             onClick={handleSubmit}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+            disabled={isAnalyzing || (!moodText.trim() && !selectedEmoji)}
+            className={`bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded transition-colors duration-200 ${
+              isAnalyzing || (!moodText.trim() && !selectedEmoji) 
+                ? "opacity-50 cursor-not-allowed" 
+                : ""
+            }`}
           >
-            Submit
+            {isAnalyzing ? "Analyzing..." : "Submit"}
           </button>
         </div>
       </div>
